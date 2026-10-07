@@ -1,0 +1,226 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── PALETA VERDE-AZUL EMANTIX ── */
+
+  /* Verdes */
+  --primary:          #084534;   /* Verde oscuro principal */
+  --primary-dark:     #062e23;   /* Verde más oscuro (hover navbar) */
+  --primary-light:    #e6f4ef;   /* Verde muy claro (fondos suaves) */
+  --primary-hover:    rgba(8, 69, 52, 0.12); /* Hover suave 12% opacidad */
+
+  /* Acento verde esmeralda */
+  --accent:           #31b079;   /* Botones activos, badges success */
+  --accent-hover:     #248a7c;   /* Hover de accent → teal */
+  --accent-light:     #d4f1e4;   /* Fondo suave accent */
+
+  /* Teal (transición verde-azul) */
+  --teal:             #248a7c;
+  --teal-light:       #e0f4f1;
+
+  /* Azules */
+  --secondary:        #074e7a;   /* Azul medio — botones secundarios */
+  --secondary-hover:  #053d60;
+  --secondary-light:  #ddeef8;
+  --navy:             #0f1f3d;   /* Azul marino — footer */
+
+  /* Logo verde lima */
+  --lime:             #60b566;
+  --lime-light:       #e8f5e9;
+
+  /* ── FONDOS ── */
+  --bg:               #f2f5f3;   /* Gris cálido con toque verde */
+  --surface:          #ffffff;
+  --surface-2:        #f7faf8;   /* Superficie secundaria */
+
+  /* ── TEXTO ── */
+  --text:             #0f1f3d;   /* Azul marino — no negro puro */
+  --text-muted:       #5a7068;   /* Verde grisáceo */
+  --text-on-dark:     #ffffff;
+  --text-on-dark-sub: rgba(255,255,255,0.55);
+
+  /* ── BORDES Y SOMBRAS ── */
+  --border:           #d4e4dc;   /* Verde muy suave */
+  --border-focus:     #31b079;
+  --shadow:           0 1px 3px rgba(8,69,52,0.08), 0 1px 2px rgba(8,69,52,0.05);
+  --shadow-md:        0 4px 12px rgba(8,69,52,0.1), 0 2px 4px rgba(8,69,52,0.06);
+  --shadow-lg:        0 10px 30px rgba(8,69,52,0.12);
+
+  /* ── ESTADOS ── */
+  --danger:           #c0392b;   /* Rojo terracota */
+  --danger-light:     #fdecea;
+  --warning:          #d4780a;   /* Naranja ámbar */
+  --warning-light:    #fef3e2;
+  --success:          #31b079;   /* Mismo que accent */
+  --success-light:    #d4f1e4;
+  --info:             #074e7a;
+  --info-light:       #ddeef8;
+
+  /* ── BADGES DE ESTADO MANTENIMIENTO ── */
+  --badge-programado-bg:   #ddeef8;
+  --badge-programado-text: #074e7a;
+  --badge-urgente-bg:      #fdecea;
+  --badge-urgente-text:    #c0392b;
+  --badge-proximo-bg:      #fef3e2;
+  --badge-proximo-text:    #d4780a;
+  --badge-completado-bg:   #d4f1e4;
+  --badge-completado-text: #084534;
+
+  /* ── GRADIENTES ── */
+  --brand-gradient:   linear-gradient(135deg, #084534 0%, #248a7c 50%, #074e7a 100%);
+  --nav-gradient:     linear-gradient(90deg, #084534 0%, #073d2c 100%);
+  --footer-gradient:  linear-gradient(180deg, #0f1f3d 0%, #0a1628 100%);
+
+  /* ── LAYOUT ── */
+  --nav-h: 64px;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+/* ── BASE ── */
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #248a7c55; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--teal); }
+
+/* ── LAYOUT ── */
+.page        { padding: 32px; max-width: 1300px; margin: 0 auto; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+.page-title  { font-size: 24px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; }
+
+/* ── CARD ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+/* ── BOTONES ── */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600; font-size: 14px;
+  padding: 10px 20px;
+  border: none; border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: all 0.2s; white-space: nowrap; font-family: inherit;
+}
+.btn-primary:hover   { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-secondary {
+  background: #fff;
+  color: var(--secondary);
+  font-weight: 600; font-size: 14px;
+  padding: 9px 18px;
+  border: 1.5px solid var(--secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.2s; font-family: inherit; white-space: nowrap;
+}
+.btn-secondary:hover { background: var(--secondary-light); }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600; font-size: 14px;
+  padding: 9px 18px;
+  border: none; border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.2s; font-family: inherit;
+}
+.btn-danger:hover { background: #a93226; transform: translateY(-1px); }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── INPUTS ── */
+.input {
+  width: 100%;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 14px; font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(49,176,121,0.15); }
+.input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+.label {
+  font-size: 11px; font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 6px; display: block;
+}
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.badge-success    { background: var(--badge-completado-bg);  color: var(--badge-completado-text); }
+.badge-warning    { background: var(--badge-proximo-bg);     color: var(--badge-proximo-text); }
+.badge-danger     { background: var(--badge-urgente-bg);     color: var(--badge-urgente-text); }
+.badge-info       { background: var(--badge-programado-bg);  color: var(--badge-programado-text); }
+.badge-gray       { background: #f1f5f9; color: #475569; }
+.badge-teal       { background: var(--teal-light); color: var(--teal); }
+
+/* ── TABLAS ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  background: var(--primary);
+  color: #fff;
+  padding: 12px 16px; text-align: left;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  white-space: nowrap;
+}
+.data-table th:first-child { border-radius: 8px 0 0 0; }
+.data-table th:last-child  { border-radius: 0 8px 0 0; }
+.data-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text); }
+.data-table tr:nth-child(even) td { background: var(--surface-2); }
+.data-table tr:hover td { background: var(--primary-light); }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-state .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
+
+/* ── MODALES / OVERLAYS ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(8, 69, 52, 0.35);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 32px; max-width: 520px; width: 90%;
+}
+
+/* ── TRANSICIONES ── */
+.slide-enter-active, .slide-leave-active { transition: all 0.25s ease; }
+.slide-enter-from,   .slide-leave-to     { opacity: 0; transform: translateY(-8px); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page       { padding: 16px; }
+  .page-title { font-size: 20px; }
+}

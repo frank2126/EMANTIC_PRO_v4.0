@@ -1,0 +1,10 @@
+.env
+venv_new/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+logs/
+.DS_Store
+Thumbs.db
