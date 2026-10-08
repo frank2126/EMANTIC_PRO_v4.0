@@ -1,7 +1,4 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de Autenticación
-#  Login, sesiones, reset de contraseña
-# ═══════════════════════════════════════════════════════════
+#  Rutas de Autenticación Login, sesiones, reset de contraseña
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -48,8 +45,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# ── Estado para bloqueo de intentos fallidos (OPTIMIZADO) ───────────
+# ── Estado para bloqueo de intentos fallidos  ───────────
+
 # Sistema con límite de memoria y limpieza automática
+
 failed_login_attempts = {}
 MAX_TRACKED_USERS = 1000  # Límite para evitar memory leak
 CLEANUP_THRESHOLD = 500   # Ejecutar limpieza cuando se alcance este número

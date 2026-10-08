@@ -1,7 +1,5 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de Procesamiento de Excel
-#  OPTIMIZADO: Batch processing, validación, reportes
-# ═══════════════════════════════════════════════════════════
+
+#  Rutas de Procesamiento de Excel
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
