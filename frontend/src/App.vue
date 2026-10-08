@@ -192,7 +192,7 @@
     <header class="mobile-header">
       <div class="mh-brand">
         <img src="/icons/icon-192.png" alt="Logo" class="mh-logo" />
-        <span class="mh-name">EMANTIX</span>
+        <span class="mh-name">EMANTIC</span>
       </div>
       <button class="mh-btn" @click="drawerOpen = !drawerOpen">☰</button>
     </header>

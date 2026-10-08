@@ -415,7 +415,7 @@ def get_categories(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Obtener lista de categorías disponibles.
+    Obtener lista de categorías disponibles.    
     
     Útil para UI (select dropdown)
     """

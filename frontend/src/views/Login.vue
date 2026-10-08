@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-left">
       <img src="/icons/icon-192.png" alt="Logo" class="login-logo" />
-      <h1 class="login-brand">EMANTIX</h1>
+      <h1 class="login-brand">EMANTIC</h1>
       <p class="login-tagline">Sistema de Gestión Técnica Automotriz</p>
       <div class="login-features">
         <div class="lf-item">✅ Manuales técnicos digitales</div>
