@@ -1,18 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-//  EMANTIX PRO — FASE 6 — Router.js Optimizado
-//  - Lazy loading de rutas
-//  - Validación de token con backend
-//  - Meta titles
-//  - Role-based access control
-// ═══════════════════════════════════════════════════════════════════════════════
-
+//  EMANTIC PRO 
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
 // ── RUTAS CON LAZY LOADING ─────────────────────────────────────────────────
 // Cada componente se carga solo cuando se navega a esa ruta
-// Reduce bundle inicial ~30-50%
-
 const Login = () => import('./views/Login.vue')
 const ForgotPassword = () => import('./views/ForgotPassword.vue')
 const Dashboard = () => import('./views/Dashboard.vue')
@@ -144,19 +135,18 @@ const router = createRouter({
   routes
 })
 
-// ── GUARDIA DE NAVEGACIÓN (Guard) ──────────────────────────────────────────
+// ──(Guard) ──────────────────────────────────────────
 // Verifica autenticación, autorización y valida token con backend
 
 let tokenValidationCache = { token: null, isValid: null, validatedAt: null }
 
 /**
  * Validar token con backend
- * Cache de 5 minutos para evitar peticiones innecesarias
  */
 async function validateTokenWithBackend(token) {
   const now = Date.now()
   
-  // Si token en cache es el mismo y fue validado hace < 5 min, usar cache
+  // Si token en cache es el mismo y fue validado hace < 5 min, usar cache ///
   if (
     tokenValidationCache.token === token &&
     tokenValidationCache.isValid !== null &&
@@ -173,14 +163,16 @@ async function validateTokenWithBackend(token) {
     // Token válido
     tokenValidationCache = { token, isValid: true, validatedAt: now }
     return true
+    
   } catch (error) {
+
     // Token inválido o expirado
     tokenValidationCache = { token, isValid: false, validatedAt: now }
     return false
   }
 }
 
-// ── BEFOREEACH GUARD ───────────────────────────────────────────────────────
+// ── BEFOREEACH GUARD ──────────────────────────────────////
 
 router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('emantix_access_token')
@@ -203,9 +195,11 @@ router.beforeEach(async (to, from, next) => {
     }
     
     // Validar token con backend (solo si pasó > 5 min)
+    
     const isTokenValid = await validateTokenWithBackend(token)
     if (!isTokenValid) {
-        // Token inválido, limpiar y logout
+        
+      // Token inválido, limpiar y logout
       localStorage.removeItem('emantix_access_token')
       sessionStorage.removeItem('emantix_user')
       return next('/login')
@@ -222,8 +216,6 @@ router.beforeEach(async (to, from, next) => {
   
   next()
 })
-
-// ── AFTEREACH HOOK ────────────────────────────────────────────────────────
 // Actualizar título de página
 
 router.afterEach((to) => {
