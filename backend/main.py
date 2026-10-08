@@ -1,11 +1,5 @@
-# ═══════════════════════════════════════════════════════════
-
-#  EMANTIX PRO API v4.0 — Aplicación Principal
-
 #  Arquitectura modular y segura
 
-# ═══════════════════════════════════════════════════════════
- 
 from fastapi import FastAPI, HTTPException, status
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -135,7 +129,7 @@ async def startup_event():
 
     logger.info("=" * 60)
 
-    logger.info("🚀 EMANTIX PRO API - Iniciando")
+    logger.info(" EMANTIX PRO API - Iniciando")
 
     logger.info("=" * 60)
 
@@ -161,9 +155,9 @@ async def startup_event():
 
         raise
 
-    logger.info(f"📋 Versión: {settings.app_version}")
+    logger.info(f" Versión: {settings.app_version}")
 
-    logger.info(f"🔒 Debug: {settings.debug}")
+    logger.info(f" Debug: {settings.debug}")
 
     logger.info("✅ Aplicación lista")
 
