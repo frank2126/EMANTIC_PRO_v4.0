@@ -1,7 +1,6 @@
-# EMANTIC PRO v4.0 — Sistema de Gestión Técnica de Flotas
+# EMANTIC PRO v4.0 — Plataforma Centralizada de Gestión Empresarial
 
-**Aplicación empresarial segura, escalable y de alto rendimiento para gestión centralizada de flotas vehiculares**
-
+**Sistema seguro, escalable y de alto rendimiento para la centralización de información empresarial, organización de manuales de mantenimiento y gestión de datos operativos**
 
 ## Tabla de Contenidos
 
@@ -22,16 +21,16 @@
 **EMANTIC PRO** es una plataforma integral de gestión técnica de flotas vehiculares que centraliza información de mantenimiento, reportes de campo, indicadores de desempeño y documentación técnica.
 
 ### Características Clave
-- ✅ Autenticación JWT segura con refresh tokens
-- ✅ Control de acceso basado en roles (RBAC)
-- ✅ Dashboard con estadísticas en tiempo real
-- ✅ Carga de datos Excel con validación
-- ✅ Almacenamiento de manuales PDF
-- ✅ Análisis de flota (DPV, ICO, disponibilidad)
-- ✅ Rate limiting anti-brute force
-- ✅ Sanitización XSS
-- ✅ Imágenes optimizadas (65% reducción)
-- ✅ Frontend responsive
+- . Autenticación JWT segura con refresh tokens
+- . Control de acceso basado en roles (RBAC)
+- . Dashboard con estadísticas en tiempo real
+- . Carga de datos Excel con validación
+- . Almacenamiento de manuales PDF
+- . Análisis de flota (DPV, ICO, disponibilidad)
+- . Rate limiting anti-brute force
+- . Sanitización XSS
+- . Imágenes optimizadas (65% reducción)
+- . Frontend responsive
 
 --
 
