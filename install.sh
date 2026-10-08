@@ -1,10 +1,4 @@
-#!/bin/bash
-
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         EMANTIC PRO v4.0 — Script de Instalación          ║"
-echo "╚════════════════════════════════════════════════════════════╝"
-
-set -e
+## EMANTIC PRO v4.0 — Script de Instalación
 
 # Colors
 RED='\033[0;31m'
@@ -84,28 +78,3 @@ if [ ! -f ".env" ]; then
 fi
 
 print_step "Frontend configurado"
-
-# Resumen
-echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║              Instalación Completada"
-echo "╚════════════════════════════════════════════════════════════╝"
-echo ""
-echo "Próximos pasos:"
-echo ""
-echo "1. Editar las credenciales SQL Server:"
-echo "   nano backend/.env"
-echo ""
-echo "2. Iniciar el backend:"
-echo "   cd backend"
-echo "   source venv_new/bin/activate"
-echo "   python main.py"
-echo ""
-echo "3. En otra terminal, iniciar el frontend:"
-echo "   cd frontend"
-echo "   npm run dev"
-echo ""
-echo "4. Acceder a http://localhost:5173"
-echo ""
-
-cd ..

@@ -1,11 +1,3 @@
-@echo off
-chcp 65001 >nul
-cls
-echo.
-echo ======================================
-echo   EMANTIC PRO v4.0 - Instalador
-echo ======================================
-echo.
 
 REM Verificar Python
 echo [1/5] Verificando Python...
@@ -47,31 +39,3 @@ echo [4/5] Instalando dependencias frontend...
 cd frontend
 call npm install
 cd..
-
-REM Resumen
-echo.
-echo [5/5] Instalacion completada!
-echo.
-echo ======================================
-echo   Proximos pasos:
-echo ======================================
-echo.
-echo 1. Editar credenciales SQL Server:
-echo    Abre: backend\.env
-echo    Cambiar: DB_SERVER, DB_USER, DB_PASSWORD
-echo.
-echo 2. Iniciar Backend (Terminal 1):
-echo    cd backend
-echo    venv_new\Scripts\activate
-echo    python main.py
-echo.
-echo 3. Iniciar Frontend (Terminal 2):
-echo    cd frontend
-echo    npm run dev
-echo.
-echo 4. Abrir navegador:
-echo    http://localhost:5173
-echo.
-echo ======================================
-echo.
-pause

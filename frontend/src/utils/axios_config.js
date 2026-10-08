@@ -1,11 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-//  EMANTIX PRO — FASE 6 — Axios Interceptor
 //  - Manejo global de errores
-//  - Validación automática de token
-//  - Refresh token automático
-//  - Logging de peticiones
-// ═══════════════════════════════════════════════════════════════════════════════
-
 import axios from 'axios'
 
 /**
@@ -15,7 +8,6 @@ import axios from 'axios'
  */
 export function setupAxiosInterceptors(router, auth) {
   
-  // ── INTERCEPTOR DE RESPUESTA ───────────────────────────────────────────
   // Manejar errores global mente
   
   axios.interceptors.response.use(
@@ -68,7 +60,6 @@ export function setupAxiosInterceptors(router, auth) {
     }
   )
   
-  // ── INTERCEPTOR DE PETICIÓN ───────────────────────────────────────────
   // Agregar access token a cada petición
   
   axios.interceptors.request.use(
@@ -127,7 +118,7 @@ export function setupGlobalErrorHandler(app, router) {
 }
 
 /**
- * Configurar instancia de axios con base URL y timeout
+ * Configurar instancia de axios con base URL 
  */
 export function configureAxios() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
