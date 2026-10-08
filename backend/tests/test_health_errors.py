@@ -1,7 +1,6 @@
-# ═══════════════════════════════════════════════════════════
-#  TESTS — HEALTH ENDPOINTS Y ERROR HANDLING
+
 #  Verificar seguridad y funcionamiento correcto
-# ═══════════════════════════════════════════════════════════
+
 
 import pytest
 from fastapi import status
@@ -12,7 +11,7 @@ class TestHealthEndpoints:
     """Tests para health check endpoints"""
     
     def test_health_basic_public(self, client):
-        """✅ GET /health es público"""
+        """ok GET /health es público"""
         response = client.get("/api/health")
         
         assert response.status_code == status.HTTP_200_OK
@@ -21,7 +20,7 @@ class TestHealthEndpoints:
         assert "timestamp" in data
     
     def test_health_liveness_public(self, client):
-        """✅ GET /health/liveness es público"""
+        """ok GET /health/liveness es público"""
         response = client.get("/api/health/liveness")
         
         assert response.status_code == status.HTTP_200_OK
@@ -29,7 +28,7 @@ class TestHealthEndpoints:
         assert data["status"] in ["alive", "ok"]
     
     def test_health_startup_public(self, client):
-        """✅ GET /health/startup es público"""
+        """ok GET /health/startup es público"""
         response = client.get("/api/health/startup")
         
         assert response.status_code == status.HTTP_200_OK
@@ -37,7 +36,7 @@ class TestHealthEndpoints:
         assert data["status"] == "ready"
     
     def test_health_readiness_public(self, client):
-        """✅ GET /health/readiness es público"""
+        """ok GET /health/readiness es público"""
         response = client.get("/api/health/readiness")
         
         # Debe funcionar sin token
@@ -51,19 +50,19 @@ class TestHealthEndpoints:
         assert "disk_usage_percent" not in str(data)
     
     def test_health_full_requires_admin(self, client):
-        """❌ GET /health/full sin token → 403"""
+        """x GET /health/full sin token → 403"""
         response = client.get("/api/health/full")
         
         assert response.status_code == status.HTTP_403_FORBIDDEN
     
     def test_health_full_requires_admin_not_user(self, client, tecnico_headers):
-        """❌ GET /health/full como técnico → 403"""
+        """x GET /health/full como técnico → 403"""
         response = client.get("/api/health/full", headers=tecnico_headers)
         
         assert response.status_code == status.HTTP_403_FORBIDDEN
     
     def test_health_full_admin_access(self, client, admin_headers):
-        """✅ GET /health/full como admin → 200"""
+        """ok GET /health/full como admin → 200"""
         response = client.get("/api/health/full", headers=admin_headers)
         
         assert response.status_code == status.HTTP_200_OK
@@ -88,7 +87,7 @@ class TestErrorHandling:
     """Tests para error handling global"""
     
     def test_validation_error_format(self, client):
-        """✅ Validation error retorna formato consistente"""
+        """ok Validation error retorna formato consistente"""
         response = client.post(
             "/api/auth/login",
             json={"username": "admin"}  # Falta password
@@ -104,7 +103,7 @@ class TestErrorHandling:
         assert data["type"] == "validation_error"
     
     def test_not_found_error(self, client, admin_headers):
-        """✅ Not found retorna JSON consistente"""
+        """ok Not found retorna JSON consistente"""
         response = client.get(
             "/api/maintenance/nonexistent-id",
             headers=admin_headers
@@ -117,7 +116,7 @@ class TestErrorHandling:
             assert isinstance(data, dict)
     
     def test_unauthorized_error_format(self, client):
-        """✅ Unauthorized retorna JSON consistente"""
+        """ok Unauthorized retorna JSON consistente"""
         response = client.get(
             "/api/users",  # Endpoint que requiere auth
             headers={"Authorization": "Bearer invalid"}
@@ -130,7 +129,7 @@ class TestErrorHandling:
         assert isinstance(data, dict)
     
     def test_forbidden_error_format(self, client, tecnico_headers):
-        """✅ Forbidden retorna JSON consistente"""
+        """ok Forbidden retorna JSON consistente"""
         response = client.post(
             "/api/users",  # Admin only
             headers=tecnico_headers,
@@ -149,7 +148,7 @@ class TestErrorHandling:
         assert isinstance(data, dict)
     
     def test_error_no_stack_trace_in_response(self, client):
-        """✅ Errors no exponen stack traces en respuesta"""
+        """ok Errors no exponen stack traces en respuesta"""
         # Intentar algo inválido
         response = client.get(
             "/api/users",
@@ -163,7 +162,7 @@ class TestErrorHandling:
         assert "line " not in response_text.lower() or "File" not in response_text
     
     def test_error_no_sql_in_response(self, client, admin_headers):
-        """✅ Errors no exponen SQL en respuesta"""
+        """ok Errors no exponen SQL en respuesta"""
         # Intentar operación inválida
         response = client.post(
             "/api/users",
@@ -185,7 +184,7 @@ class TestErrorHandling:
         assert "WHERE" not in response_text.upper()
     
     def test_request_id_in_response(self, client):
-        """✅ Errors incluyen request ID para tracking"""
+        """ok Errors incluyen request ID para tracking"""
         response = client.get(
             "/api/users"  # Sin token
         )
@@ -201,7 +200,7 @@ class TestEndpointsStillWork:
     """Tests para verificar que endpoints normales siguen funcionando"""
     
     def test_login_still_works(self, client):
-        """✅ POST /login sigue funcionando"""
+        """ok POST /login sigue funcionando"""
         response = client.post(
             "/api/auth/login",
             json={"username": "admin", "password": "Admin123!"}
@@ -213,7 +212,7 @@ class TestEndpointsStillWork:
         assert "user" in data
     
     def test_me_endpoint_still_works(self, client, admin_headers):
-        """✅ GET /auth/me sigue funcionando"""
+        """ok GET /auth/me sigue funcionando"""
         response = client.get(
             "/api/auth/me",
             headers=admin_headers
@@ -224,7 +223,7 @@ class TestEndpointsStillWork:
         assert data["username"] == "admin"
     
     def test_list_users_still_works(self, client, admin_headers):
-        """✅ GET /users sigue funcionando"""
+        """ok GET /users sigue funcionando"""
         response = client.get(
             "/api/users",
             headers=admin_headers
@@ -235,7 +234,7 @@ class TestEndpointsStillWork:
         assert isinstance(data, list) or isinstance(data, dict)
     
     def test_maintenance_list_still_works(self, client, admin_headers):
-        """✅ GET /maintenance sigue funcionando"""
+        """ok GET /maintenance sigue funcionando"""
         response = client.get(
             "/api/maintenance",
             headers=admin_headers
@@ -247,7 +246,7 @@ class TestEndpointsStillWork:
         assert data is not None
     
     def test_reportes_list_still_works(self, client, admin_headers):
-        """✅ GET /reportes sigue funcionando"""
+        """ok GET /reportes sigue funcionando"""
         response = client.get(
             "/api/reportes",
             headers=admin_headers
@@ -258,7 +257,7 @@ class TestEndpointsStillWork:
         assert data is not None
     
     def test_manuals_list_still_works(self, client, admin_headers):
-        """✅ GET /manuals sigue funcionando"""
+        """ok GET /manuals sigue funcionando"""
         response = client.get(
             "/api/manuals",
             headers=admin_headers

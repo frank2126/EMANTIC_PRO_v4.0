@@ -1,7 +1,7 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de Reportes
-#  CRUD optimizado con agregación en BD y caché
-# ═══════════════════════════════════════════════════════════
+
+# Rutas de Reportes
+#  CRUD  BD y caché
+
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session

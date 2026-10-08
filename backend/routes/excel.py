@@ -199,7 +199,7 @@ async def upload_dpv(
     current_user: CurrentUserResponse = Depends(get_current_admin_user)
 ):
     """
-    Procesar y subir archivo Excel DPV (OPTIMIZADO).
+    Procesar y subir archivo Excel DPV.
     
     Optimizaciones:
     - Lectura en streaming
@@ -349,7 +349,7 @@ async def upload_ico(
     current_user: CurrentUserResponse = Depends(get_current_admin_user)
 ):
     """
-    Procesar y subir archivo Excel ICO (OPTIMIZADO).
+    Procesar y subir archivo Excel ICO.
     
     Similar a upload_dpv pero para tabla ICO
     """

@@ -1,7 +1,5 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Schemas Pydantic para Autenticación
+#  Autenticación
 #  Validación segura de datos de entrada/salida
-# ═══════════════════════════════════════════════════════════
 
 from pydantic import BaseModel, Field, validator
 from typing import Optional

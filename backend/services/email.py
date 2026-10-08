@@ -1,7 +1,5 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Servicio de Email
+# Servicio de Email
 #  Envío seguro de emails con variables de entorno
-# ═══════════════════════════════════════════════════════════
 
 import smtplib
 from email.mime.text import MIMEText

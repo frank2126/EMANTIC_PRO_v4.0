@@ -1,7 +1,5 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-#  EMANTIX PRO — FASE 9 — Health Checks
-#  Verificación de salud de backend y todas sus dependencias
-# ═══════════════════════════════════════════════════════════════════════════════
+
+#  Verificación de procesos del backend y todas sus dependencias
 
 import asyncio
 from datetime import datetime

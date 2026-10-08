@@ -1,7 +1,6 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de Mantenimiento
-#  CRUD optimizado con paginación y caché
-# ═══════════════════════════════════════════════════════════
+# Rutas de Mantenimiento
+# CRUD optimizado con paginación y cache
+
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session

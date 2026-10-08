@@ -1,6 +1,4 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Tests — Configuración y Fixtures Compartidas
-# ═══════════════════════════════════════════════════════════
+# Configuración y Fixtures Compartidas
 
 import pytest
 import os

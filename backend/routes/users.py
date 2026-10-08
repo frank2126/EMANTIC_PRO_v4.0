@@ -1,7 +1,7 @@
-# ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de Gestión de Usuarios
+
+# Rutas de Gestión de Usuarios
 #  CRUD de usuarios (solo admin)
-# ═══════════════════════════════════════════════════════════
+
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session

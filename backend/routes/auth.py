@@ -45,7 +45,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# ── Estado para bloqueo de intentos fallidos  ───────────
 
 # Sistema con límite de memoria y limpieza automática
 

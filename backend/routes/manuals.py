@@ -1,7 +1,6 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-#  EMANTIX PRO — FASE 5 — Rutas de Manuales PDF
-#  SEGURO: Validación, autenticación, control de acceso
-# ═══════════════════════════════════════════════════════════════════════════════
+# Rutas de Manuales PDF
+# SEGURO: Validación, autenticación, control de acceso
+
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
 from fastapi.responses import FileResponse
