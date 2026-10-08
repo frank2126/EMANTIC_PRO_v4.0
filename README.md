@@ -1,10 +1,9 @@
-# 🚗 EMANTIC PRO v4.0 — Sistema de Gestión Técnica de Flotas
+# EMANTIC PRO v4.0 — Sistema de Gestión Técnica de Flotas
 
 **Aplicación empresarial segura, escalable y de alto rendimiento para gestión centralizada de flotas vehiculares**
 
----
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 1. [Descripción](#descripción)
 2. [Características Principales](#características-principales)
@@ -18,7 +17,7 @@
 
 ---
 
-## 📖 Descripción
+## Descripción
 
 **EMANTIC PRO** es una plataforma integral de gestión técnica de flotas vehiculares que centraliza información de mantenimiento, reportes de campo, indicadores de desempeño y documentación técnica.
 
@@ -34,18 +33,18 @@
 - ✅ Imágenes optimizadas (65% reducción)
 - ✅ Frontend responsive
 
----
+--
 
-## 🛠️ Tecnologías
+## Tecnologías
 
 - **Backend:** Python 3.12, FastAPI, SQLAlchemy
 - **Base de datos:** SQL Server 2019+
 - **Frontend:** Vue 3, Vite, Axios
 - **DevOps:** Docker, Nginx, pytest
 
----
+--
 
-## 📦 Requisitos
+## Requisitos
 
 - Python 3.12+
 - Node.js 18+
@@ -54,15 +53,16 @@
 
 ---
 
-## 💻 Instalación Rápida
+## Instalación Rápida
 
 ### Backend
 ```bash
 cd backend
 python -m venv venv_new
-source venv_new/bin/activate  # En Windows: venv_new\Scripts\activate
+source venv_new/bin/activate              # En Windows: venv_new\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
+
 # Editar .env con credenciales SQL Server
 python main.py
 ```
@@ -76,7 +76,7 @@ npm run dev
 
 ---
 
-## ⚙️ Configuración (.env)
+## Configuración (.env)
 
 ```env
 # Base de Datos
@@ -95,12 +95,12 @@ CORS_ORIGINS=["http://localhost:5173"]
 
 # App
 DEBUG=True  # False en producción
-APP_VERSION=4.0.0
+APP_VERSION=4.0
 ```
 
 ---
 
-## 🧪 Tests
+##  Tests
 
 ```bash
 cd backend
@@ -109,7 +109,7 @@ pytest tests/ -v
 
 ---
 
-## 🚀 Despliegue
+## Despliegue
 
 ### Docker
 ```bash
@@ -117,16 +117,7 @@ docker-compose up -d
 ```
 
 ### Servidor Ubuntu
-Ver sección completa en README.md (versión extendida)
+Ver sección completa en README.md 
 
 ---
 
-## 🆘 Troubleshooting
-
-**CORS error:** Verificar CORS_ORIGINS en .env  
-**SQL Server error:** Verificar credenciales y driver ODBC  
-**Login falla:** Usuario por defecto: admin / Admin123!
-
----
-
-**Version:** 4.0.0 | **Estado:** ✅ Producción
