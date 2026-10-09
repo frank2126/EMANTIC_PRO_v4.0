@@ -316,3 +316,51 @@ def init_db():
         raise e
     finally:
         db.close()
+
+# ═══════════════════════════════════════════════════════════
+# MODELO REPUESTODB - CORREGIDO PARA PYTHON 3.12
+# Reemplazar lo que agregaste antes por esto
+# ═══════════════════════════════════════════════════════════
+
+class RepuestoDB(Base):
+    """
+    Modelo para repuestos/piezas
+    Cargados desde el Excel de repuestos
+    """
+    __tablename__ = "repuestos"
+    
+    # Columnas principales
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pieza = Column(String(50), unique=True, nullable=False, index=True)  # Código del repuesto
+    descripcion = Column(String(500), nullable=False, index=True)  # Descripción
+    udm = Column(String(20), default="UN")  # Unidad de medida
+    clase = Column(String(50), index=True)  # Clase
+    
+    # Jerarquía
+    jerarquia_pieza = Column(String(100))  # Jerarquía de la pieza
+    nivel_sistema = Column(String(50), index=True)  # Nivel de sistema
+    nivel_montaje = Column(String(100))  # Nivel de montaje
+    nivel_componente = Column(String(100))  # Nivel de componente
+    
+    # Información adicional
+    condicion = Column(String(100))  # Condición
+    numero_pieza_fabricante = Column(String(100))  # Número de pieza del fabricante
+    suministrador_sugerido = Column(String(200))  # Suministrador sugerido
+    
+    # Seguimiento
+    seguimiento_piezas_reparables = Column(String(10), default="NO")  # Sí/No
+    seguimiento_por_activo = Column(String(10), default="NO")  # Sí/No
+    dias_garantia = Column(Integer, default=0)  # Días de garantía
+    evitar_nuevos_pedidos = Column(String(10), default="NO")  # Sí/No
+    
+    # Metadatos
+    foto_perfil = Column(String(500), default="")  # Ruta foto
+    activo = Column(Boolean, default=True, index=True)  # Activo/Inactivo
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)  # CORREGIDO: datetime.datetime.utcnow
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)  # CORREGIDO
+    
+    # Índices compuestos para búsqueda rápida
+    __table_args__ = (
+        Index('idx_pieza_descripcion', 'pieza', 'descripcion'),
+        Index('idx_clase_nivel', 'clase', 'nivel_sistema'),
+    )

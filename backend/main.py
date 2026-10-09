@@ -34,9 +34,13 @@ from routes.excel import router as excel_router
 
 from routes.manuals import router as manuals_router
 
+from routes.repuestos import router as repuestos_router
+
 from routes.health import router as health_router
 
 from routes.datos import router as datos_router
+
+
  
 # Error handling
 
@@ -220,6 +224,8 @@ app.include_router(reportes_router)
 app.include_router(excel_router)
 
 app.include_router(manuals_router)
+
+app.include_router(repuestos_router)
 
 app.include_router(health_router)
 

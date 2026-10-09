@@ -1,6 +1,9 @@
-//  EMANTIC PRO 
+//  EMANTIC PRO - Router Actualizado
+//  - Usa auth.js para autenticación
+//  - Incluye Resources2.vue para repuestos
+
 import { createRouter, createWebHistory } from 'vue-router'
-import axios from 'axios'
+import { useAuth } from './auth.js'
 
 // ── RUTAS CON LAZY LOADING ─────────────────────────────────────────────────
 // Cada componente se carga solo cuando se navega a esa ruta
@@ -8,6 +11,7 @@ const Login = () => import('./views/Login.vue')
 const ForgotPassword = () => import('./views/ForgotPassword.vue')
 const Dashboard = () => import('./views/Dashboard.vue')
 const Manuals = () => import('./views/Manuals.vue')
+const Resources2 = () => import('./views/Resources2.vue')
 const Maintenance = () => import('./views/Maintenance.vue')
 const Documentation = () => import('./views/Documentation.vue')
 const Resources = () => import('./views/Resources.vue')
@@ -54,6 +58,15 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Manuales Técnicos - EMANTIC Pro'
+    }
+  },
+  {
+    path: '/resources2',
+    name: 'resources2',
+    component: Resources2,
+    meta: {
+      requiresAuth: true,
+      title: 'Repuestos y Piezas - EMANTIC Pro'
     }
   },
   {
@@ -135,53 +148,16 @@ const router = createRouter({
   routes
 })
 
-// ──(Guard) ──────────────────────────────────────────
-// Verifica autenticación, autorización y valida token con backend
+// ── GUARD DE AUTENTICACIÓN ──────────────────────────────────────────────────
+// Verifica autenticación y autorización usando auth.js
 
-let tokenValidationCache = { token: null, isValid: null, validatedAt: null }
-
-/**
- * Validar token con backend
- */
-async function validateTokenWithBackend(token) {
-  const now = Date.now()
-  
-  // Si token en cache es el mismo y fue validado hace < 5 min, usar cache ///
-  if (
-    tokenValidationCache.token === token &&
-    tokenValidationCache.isValid !== null &&
-    (now - tokenValidationCache.validatedAt) < 5 * 60 * 1000
-  ) {
-    return tokenValidationCache.isValid
-  }
-  
-  try {
-    await axios.get('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    
-    // Token válido
-    tokenValidationCache = { token, isValid: true, validatedAt: now }
-    return true
-    
-  } catch (error) {
-
-    // Token inválido o expirado
-    tokenValidationCache = { token, isValid: false, validatedAt: now }
-    return false
-  }
-}
-
-// ── BEFOREEACH GUARD ──────────────────────────────────////
-
-router.beforeEach(async (to, from, next) => {
-  const token = localStorage.getItem('emantix_access_token')
-  const user = JSON.parse(sessionStorage.getItem('emantix_user') || 'null')
+router.beforeEach((to, from, next) => {
+  const { state, isLoggedIn, isAdmin } = useAuth()
   
   // Ruta pública - permitir acceso
   if (to.meta.public) {
     // Si está logueado y va a login, redirigir a dashboard
-    if (token && to.path === '/login') {
+    if (isLoggedIn() && to.path === '/login') {
       return next('/dashboard')
     }
     return next()
@@ -189,24 +165,13 @@ router.beforeEach(async (to, from, next) => {
   
   // Ruta protegida - requiere autenticación
   if (to.meta.requiresAuth) {
-    // Sin token
-    if (!token) {
-      return next('/login')
-    }
-    
-    // Validar token con backend (solo si pasó > 5 min)
-    
-    const isTokenValid = await validateTokenWithBackend(token)
-    if (!isTokenValid) {
-        
-      // Token inválido, limpiar y logout
-      localStorage.removeItem('emantix_access_token')
-      sessionStorage.removeItem('emantix_user')
+    // Sin sesión activa
+    if (!isLoggedIn()) {
       return next('/login')
     }
     
     // Verificar permisos de admin
-    if (to.meta.requiresAdmin && user?.role !== 'admin') {
+    if (to.meta.requiresAdmin && !isAdmin()) {
       console.warn(`Acceso denegado: usuario no es admin`)
       return next('/dashboard')
     }
@@ -216,7 +181,8 @@ router.beforeEach(async (to, from, next) => {
   
   next()
 })
-// Actualizar título de página
+
+// ── ACTUALIZAR TÍTULO DE PÁGINA ────────────────────────────────────────────
 
 router.afterEach((to) => {
   // Esperar a que se renderice el componente

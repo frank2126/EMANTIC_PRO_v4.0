@@ -29,7 +29,7 @@
         Dashboard
       </router-link>
 
-      <!-- Manuales -->
+            <!-- Manuales -->
       <router-link to="/manuals" class="nav-link nav-link--manuals" title="Manuales">
         <span class="nav-icon nav-icon--svg nav-icon--manuals">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -39,6 +39,16 @@
         Manuales
       </router-link>
 
+      <!-- Repuestos -->
+      <router-link to="/resources2" class="nav-link nav-link--resources" title="Repuestos">
+        <span class="nav-icon nav-icon--svg nav-icon--resources">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(255,255,255,0.04)"/>
+          </svg>
+        </span>
+        Repuestos
+      </router-link>
+      
       <!-- Mantenimiento -->
       <router-link to="/maintenance" class="nav-link nav-link--maintenance" title="Mantenimiento">
         <span class="nav-icon nav-icon--svg nav-icon--maintenance">
