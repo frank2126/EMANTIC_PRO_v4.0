@@ -1,170 +1,286 @@
 """
 EMANTIC PRO - Manuals Router
-Endpoint para gestión de manuales técnicos y documentación
+Gestión de manuales técnicos con serialización correcta
+Basado en código original que funcionaba correctamente
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db, ManualDB
 import uuid
 import os
-from datetime import datetime
+from datetime import datetime, date
 
 router = APIRouter(prefix="/api/manuals", tags=["manuals"])
 
 # ═══════════════════════════════════════════════════════════
-# GET - Obtener Manuales
+# CATEGORÍAS HARDCODEADAS (Como en el código original)
+# ═══════════════════════════════════════════════════════════
+
+MANUAL_CATEGORIES = [
+    "Transmilenio",
+    "Sistema de Frenos",
+    "Sistema Eléctrico",
+    "Suspensión",
+    "Carrocería y Chasis",
+    "Diagnóstico ECU",
+    "General",
+    "Motor y Transmisión"
+]
+
+# ═══════════════════════════════════════════════════════════
+# Crear carpeta de uploads si no existe
+# ═══════════════════════════════════════════════════════════
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ═══════════════════════════════════════════════════════════
+# GET - Categorías (Hardcodeadas)
+# ═══════════════════════════════════════════════════════════
+
+@router.get("/categories")
+async def get_categories():
+    """
+    Obtener todas las categorías de manuales disponibles
+    Devuelve lista hardcodeada como en el código original
+    """
+    try:
+        return MANUAL_CATEGORIES
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ═══════════════════════════════════════════════════════════
+# GET - Todos los Manuales
 # ═══════════════════════════════════════════════════════════
 
 @router.get("/")
 async def get_manuals(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
     """
     Obtener lista de manuales con paginación
-    SQL Server requiere ORDER BY cuando hay OFFSET/LIMIT
+    Devuelve DICTS en lugar de objetos SQLAlchemy
     """
     try:
+        # Filtrar solo manuales activos
         manuals = (
             db.query(ManualDB)
-            .order_by(desc(ManualDB.id))  # ✅ IMPORTANTE: ORDER BY para SQL Server
+            .filter_by(active=True)
+            .order_by(desc(ManualDB.uploaded_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
-        return {
-            "success": True,
-            "data": manuals,
-            "total": db.query(ManualDB).count(),
-            "skip": skip,
-            "limit": limit
-        }
+        
+        # Convertir a dicts para serialización correcta
+        result = []
+        for m in manuals:
+            result.append({
+                "id": m.id,
+                "title": m.title or "",
+                "description": m.description or "",
+                "category": m.category or "General",
+                "filename": m.filename or "",
+                "url": m.url or "",
+                "size_mb": m.size_mb or "0",
+                "uploaded_by": m.uploaded_by or "",
+                "uploaded_at": m.uploaded_at or str(date.today()),
+                "active": m.active
+            })
+        
+        return result
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════
-# GET - Obtener Manual por ID
+# GET - Manuales por Categoría
+# ═══════════════════════════════════════════════════════════
+
+@router.get("/categoria/{category}")
+async def get_manuals_by_category(
+    category: str,
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtener manuales filtrados por categoría
+    Devuelve DICTS para evitar problemas de serialización
+    """
+    try:
+        manuals = (
+            db.query(ManualDB)
+            .filter_by(category=category, active=True)
+            .order_by(desc(ManualDB.uploaded_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        # Convertir a dicts
+        result = []
+        for m in manuals:
+            result.append({
+                "id": m.id,
+                "title": m.title or "",
+                "description": m.description or "",
+                "category": m.category or "General",
+                "filename": m.filename or "",
+                "url": m.url or "",
+                "size_mb": m.size_mb or "0",
+                "uploaded_by": m.uploaded_by or "",
+                "uploaded_at": m.uploaded_at or str(date.today()),
+                "active": m.active
+            })
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ═══════════════════════════════════════════════════════════
+# GET - Manual por ID
 # ═══════════════════════════════════════════════════════════
 
 @router.get("/{manual_id}")
 async def get_manual(manual_id: str, db: Session = Depends(get_db)):
     """Obtener un manual específico por ID"""
     try:
-        manual = db.query(ManualDB).filter(ManualDB.id == manual_id).first()
+        m = db.query(ManualDB).filter_by(id=manual_id, active=True).first()
         
-        if not manual:
+        if not m:
             raise HTTPException(status_code=404, detail="Manual no encontrado")
         
         return {
-            "success": True,
-            "data": manual
+            "id": m.id,
+            "title": m.title or "",
+            "description": m.description or "",
+            "category": m.category or "General",
+            "filename": m.filename or "",
+            "url": m.url or "",
+            "size_mb": m.size_mb or "0",
+            "uploaded_by": m.uploaded_by or "",
+            "uploaded_at": m.uploaded_at or str(date.today()),
+            "active": m.active
         }
     except HTTPException:
         raise
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════
-# POST - Subir Manual
+# POST - Subir Manual (Con Form como en el original)
 # ═══════════════════════════════════════════════════════════
 
 @router.post("/upload")
 async def upload_manual(
     file: UploadFile = File(...),
-    title: str = None,
-    category: str = "General",
+    title: str = Form(""),
+    description: str = Form(""),
+    category: str = Form("General"),
     db: Session = Depends(get_db)
 ):
     """
     Subir un nuevo manual PDF
-    ✅ ENDPOINT PARA SOLUCIONAR ERROR 405
+    Usa Form para los parámetros (como en el código original)
+    Devuelve un DICT
     """
     try:
-        # ✓ Validar que sea PDF
-        if file.content_type not in ["application/pdf", "application/x-pdf"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Solo se permiten archivos PDF"
-            )
+        # Validar que sea PDF
+        if not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Solo se permiten archivos PDF")
         
-        # ✓ Validar tamaño (máximo 100MB)
-        max_size = 100 * 1024 * 1024
+        # Generar ID único
+        file_id = str(uuid.uuid4())
+        
+        # Crear nombre único del archivo
+        filename = f"{file_id}_{file.filename}"
+        
+        # Leer contenido del archivo
         content = await file.read()
-        if len(content) > max_size:
-            raise HTTPException(
-                status_code=413,
-                detail="Archivo demasiado grande (máximo 100MB)"
-            )
         
-        # ✓ Crear carpeta de uploads si no existe
-        os.makedirs("uploads", exist_ok=True)
+        # Calcular tamaño en MB
+        size_mb = round(len(content) / 1024 / 1024, 1)
         
-        # ✓ Generar nombre único para el archivo
-        unique_filename = f"{uuid.uuid4()}_{file.filename}"
-        filepath = f"uploads/{unique_filename}"
-        
-        # ✓ Guardar archivo en disco
+        # Guardar archivo en disco
+        filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as f:
             f.write(content)
         
-        # ✓ Título por defecto si no se proporciona
-        if not title:
-            title = file.filename.replace(".pdf", "")
+        # Preparar título (usar nombre del archivo si no se proporciona)
+        final_title = title or file.filename.replace(".pdf", "")
         
-        # ✓ Calcular tamaño en MB
-        size_mb = round(len(content) / 1024 / 1024, 2)
-        
-        # ✓ Crear registro en BD
-        new_manual = ManualDB(
-            id=str(uuid.uuid4()),
-            title=title,
-            description="",
+        # Crear registro en BD
+        m = ManualDB(
+            id=file_id,
+            title=final_title,
+            description=description,
             category=category,
-            filename=unique_filename,
-            url=filepath,
+            filename=filename,
+            url=f"/uploads/{filename}",  # Ruta relativa como en original
             size_mb=str(size_mb),
-            uploaded_by="admin",  # En producción, obtener del usuario autenticado
-            uploaded_at=datetime.utcnow().isoformat(),
+            uploaded_by="admin",  # En producción: obtener del usuario autenticado
+            uploaded_at=str(date.today()),
             active=True
         )
         
-        # ✓ Guardar en BD
-        db.add(new_manual)
+        db.add(m)
         db.commit()
-        db.refresh(new_manual)
+        db.refresh(m)
         
+        # Retornar DICT
         return {
-            "success": True,
-            "message": "Manual subido correctamente",
-            "data": {
-                "id": new_manual.id,
-                "title": new_manual.title,
-                "filename": new_manual.filename,
-                "size_mb": size_mb,
-                "uploaded_at": new_manual.uploaded_at
-            }
+            "id": m.id,
+            "title": m.title,
+            "description": m.description,
+            "category": m.category,
+            "filename": m.filename,
+            "url": m.url,
+            "size_mb": m.size_mb,
+            "uploaded_by": m.uploaded_by,
+            "uploaded_at": m.uploaded_at,
+            "message": "Manual subido correctamente"
         }
     
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        # Intentar eliminar archivo si falló la BD
+        # Intentar eliminar archivo si falló
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
         except:
             pass
         
-        return {
-            "success": False,
-            "error": f"Error al subir manual: {str(e)}"
-        }
+        raise HTTPException(status_code=500, detail=f"Error al subir manual: {str(e)}")
+
+# ═══════════════════════════════════════════════════════════
+# DELETE - Eliminar Manual (Marca como inactivo)
+# ═══════════════════════════════════════════════════════════
+
+@router.delete("/{manual_id}")
+async def delete_manual(manual_id: str, db: Session = Depends(get_db)):
+    """
+    Eliminar un manual (marca como inactivo en lugar de eliminar)
+    Como en el código original
+    """
+    try:
+        m = db.query(ManualDB).filter_by(id=manual_id).first()
+        
+        if not m:
+            raise HTTPException(status_code=404, detail="Manual no encontrado")
+        
+        # Marcar como inactivo en lugar de eliminar
+        m.active = False
+        db.commit()
+        
+        return {"message": "Manual eliminado correctamente"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════
 # PUT - Actualizar Manual
@@ -173,82 +289,46 @@ async def upload_manual(
 @router.put("/{manual_id}")
 async def update_manual(
     manual_id: str,
-    title: str = None,
-    description: str = None,
-    category: str = None,
+    title: str = Form(None),
+    description: str = Form(None),
+    category: str = Form(None),
     db: Session = Depends(get_db)
 ):
     """Actualizar información de un manual"""
     try:
-        manual = db.query(ManualDB).filter(ManualDB.id == manual_id).first()
+        m = db.query(ManualDB).filter_by(id=manual_id).first()
         
-        if not manual:
+        if not m:
             raise HTTPException(status_code=404, detail="Manual no encontrado")
         
         # Actualizar solo los campos proporcionados
         if title:
-            manual.title = title
+            m.title = title
         if description:
-            manual.description = description
+            m.description = description
         if category:
-            manual.category = category
+            m.category = category
         
         db.commit()
-        db.refresh(manual)
+        db.refresh(m)
         
         return {
-            "success": True,
-            "message": "Manual actualizado",
-            "data": manual
+            "id": m.id,
+            "title": m.title,
+            "description": m.description,
+            "category": m.category,
+            "filename": m.filename,
+            "url": m.url,
+            "size_mb": m.size_mb,
+            "uploaded_by": m.uploaded_by,
+            "uploaded_at": m.uploaded_at,
+            "message": "Manual actualizado"
         }
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
-# ═══════════════════════════════════════════════════════════
-# DELETE - Eliminar Manual
-# ═══════════════════════════════════════════════════════════
-
-@router.delete("/{manual_id}")
-async def delete_manual(manual_id: str, db: Session = Depends(get_db)):
-    """Eliminar un manual y su archivo asociado"""
-    try:
-        manual = db.query(ManualDB).filter(ManualDB.id == manual_id).first()
-        
-        if not manual:
-            raise HTTPException(status_code=404, detail="Manual no encontrado")
-        
-        # Guardar ruta para eliminar archivo
-        filepath = manual.url
-        
-        # Eliminar registro de BD
-        db.delete(manual)
-        db.commit()
-        
-        # Intentar eliminar archivo del disco
-        try:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception as e:
-            print(f"Advertencia: No se pudo eliminar archivo {filepath}: {e}")
-        
-        return {
-            "success": True,
-            "message": "Manual eliminado correctamente"
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════
 # GET - Búsqueda de Manuales
@@ -264,17 +344,26 @@ async def search_manuals(query: str, db: Session = Depends(get_db)):
                 (ManualDB.title.ilike(f"%{query}%")) |
                 (ManualDB.description.ilike(f"%{query}%"))
             )
-            .order_by(desc(ManualDB.id))
+            .filter_by(active=True)
+            .order_by(desc(ManualDB.uploaded_at))
             .all()
         )
         
-        return {
-            "success": True,
-            "data": manuals,
-            "count": len(manuals)
-        }
+        result = []
+        for m in manuals:
+            result.append({
+                "id": m.id,
+                "title": m.title or "",
+                "description": m.description or "",
+                "category": m.category or "General",
+                "filename": m.filename or "",
+                "url": m.url or "",
+                "size_mb": m.size_mb or "0",
+                "uploaded_by": m.uploaded_by or "",
+                "uploaded_at": m.uploaded_at or str(date.today()),
+                "active": m.active
+            })
+        
+        return result
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
