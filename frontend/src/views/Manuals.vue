@@ -6,8 +6,12 @@
       <div class="manuals-hero-overlay">
         <div class="manuals-hero-content">
           <div class="manuals-hero-eyebrow">EMASIVO · DOCUMENTACIÓN TÉCNICA</div>
-          <h1 class="manuals-hero-title">Biblioteca de Manuales Técnicos</h1>
-          <p class="manuals-hero-sub">Manuales oficiales Scania y Volkswagen para el diagnóstico, mantenimiento y reparación de la flota.</p>
+          <h1 class="manuals-hero-title">{{ tab === 'manuals' ? 'Biblioteca de Manuales Técnicos' : 'Catálogo de Repuestos' }}</h1>
+          <p class="manuals-hero-sub">
+            {{ tab === 'manuals'
+              ? 'Manuales oficiales Scania y Volkswagen para el diagnóstico, mantenimiento y reparación de la flota.'
+              : 'Busca el código de cada repuesto para solicitarlo correctamente.' }}
+          </p>
 
           <div v-if="heroStats.length" class="manuals-hero-stats">
             <div v-for="s in heroStats" :key="s.label" class="mh-stat">
@@ -19,140 +23,246 @@
       </div>
     </div>
 
-    <div class="page-header page-header--slim">
-      <button class="btn-primary" @click="showUpload = !showUpload">
-        {{ showUpload ? '✕ Cancelar' : '+ Nuevo Manual' }}
-      </button>
+    <!-- ══ PESTAÑAS ══ -->
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" :class="{active: tab==='manuals'}" role="tab" :aria-selected="tab==='manuals'" @click="openTab('manuals')">Manuales</button>
+      <button class="tab-btn" :class="{active: tab==='repuestos'}" role="tab" :aria-selected="tab==='repuestos'" @click="openTab('repuestos')">Repuestos</button>
     </div>
 
-    <transition name="slide">
-      <div v-if="showUpload" class="card upload-card">
-        <h3 class="card-title">Subir nuevo manual PDF</h3>
-        <div class="form-grid">
-          <div class="fgroup">
-            <label class="label">Título del manual</label>
-            <input v-model="form.title" class="input" placeholder="Ej: Manual Motor Cummins ISB 6.7L" />
-          </div>
-          <div class="fgroup">
-            <label class="label">Marca</label>
-            <select v-model="form.brand" class="input">
-              <option value="">Sin marca</option>
-              <option value="Scania">Scania</option>
-              <option value="Volkswagen">Volkswagen</option>
-            </select>
-          </div>
-          <div class="fgroup">
-            <label class="label">Categoría</label>
-            <select v-model="form.category" class="input">
-              <option v-for="c in categories" :key="c">{{ c }}</option>
-            </select>
-          </div>
-          <div class="fgroup form-full">
-            <label class="label">Descripción</label>
-            <textarea v-model="form.description" class="input" rows="2" placeholder="Descripción breve del manual..."></textarea>
-          </div>
-          <div class="fgroup form-full">
-            <div class="drop-zone" @click="$refs.fi.click()" @dragover.prevent @drop.prevent="e => form.file = e.dataTransfer.files[0]">
-              <span v-if="!form.file">📄 Arrastra tu PDF aquí o haz clic para seleccionar</span>
-              <span v-else style="color:var(--success)">✅ {{ form.file.name }}</span>
+    <!-- ════════════════ PESTAÑA: MANUALES ════════════════ -->
+    <template v-if="tab === 'manuals'">
+
+      <div class="page-header page-header--slim">
+        <button class="btn-primary" @click="showUpload = !showUpload">
+          {{ showUpload ? '✕ Cancelar' : '+ Nuevo Manual' }}
+        </button>
+      </div>
+
+      <transition name="slide">
+        <div v-if="showUpload" class="card upload-card">
+          <h3 class="card-title">Subir nuevo manual PDF</h3>
+          <div class="form-grid">
+            <div class="fgroup">
+              <label class="label">Título del manual</label>
+              <input v-model="form.title" class="input" placeholder="Ej: Manual Motor Cummins ISB 6.7L" />
             </div>
-            <input ref="fi" type="file" accept=".pdf" style="display:none" @change="e => form.file = e.target.files[0]" />
+            <div class="fgroup">
+              <label class="label">Marca</label>
+              <select v-model="form.brand" class="input">
+                <option value="">Sin marca</option>
+                <option value="Scania">Scania</option>
+                <option value="Volkswagen">Volkswagen</option>
+              </select>
+            </div>
+            <div class="fgroup">
+              <label class="label">Categoría</label>
+              <select v-model="form.category" class="input">
+                <option v-for="c in categories" :key="c">{{ c }}</option>
+              </select>
+            </div>
+            <div class="fgroup form-full">
+              <label class="label">Descripción</label>
+              <textarea v-model="form.description" class="input" rows="2" placeholder="Descripción breve del manual..."></textarea>
+            </div>
+            <div class="fgroup form-full">
+              <div class="drop-zone" @click="$refs.fi.click()" @dragover.prevent @drop.prevent="e => form.file = e.dataTransfer.files[0]">
+                <span v-if="!form.file">📄 Arrastra tu PDF aquí o haz clic para seleccionar</span>
+                <span v-else style="color:var(--success)">✅ {{ form.file.name }}</span>
+              </div>
+              <input ref="fi" type="file" accept=".pdf" style="display:none" @change="e => form.file = e.target.files[0]" />
+            </div>
+          </div>
+          <p v-if="uploadErr" class="err-msg">{{ uploadErr }}</p>
+          <div class="form-actions">
+            <button class="btn-secondary" @click="showUpload=false">Cancelar</button>
+            <button class="btn-primary" :disabled="uploading||!form.file" @click="upload">
+              {{ uploading ? 'Subiendo...' : '↑ Subir Manual' }}
+            </button>
           </div>
         </div>
-        <p v-if="uploadErr" class="err-msg">{{ uploadErr }}</p>
-        <div class="form-actions">
-          <button class="btn-secondary" @click="showUpload=false">Cancelar</button>
-          <button class="btn-primary" :disabled="uploading||!form.file" @click="upload">
-            {{ uploading ? 'Subiendo...' : '↑ Subir Manual' }}
+      </transition>
+
+      <div class="manuals-layout">
+        <div class="card cat-panel">
+
+          <!-- ── MARCAS ── -->
+          <h3 class="cat-title">Marca</h3>
+          <div class="brand-cards">
+          <button class="brand-card" :class="{active: activeBrand==='Scania'}" @click="toggleBrand('Scania')">
+            <img :src="scaniaLogo" alt="Scania" class="brand-img" />
+            <span class="brand-label">Scania</span>
+              </button>
+
+          <button class="brand-card" :class="{active: activeBrand==='Volkswagen'}" @click="toggleBrand('Volkswagen')">
+            <img :src="vwLogo" alt="Volkswagen" class="brand-img" />
+            <span class="brand-label">Volkswagen</span>
+              </button>
+          </div>
+
+          <div class="cat-divider"></div>
+
+          <!-- ── CATEGORÍAS ── -->
+          <h3 class="cat-title">Categorías</h3>
+          <button class="cat-btn" :class="{active:!activeCat}" @click="activeCat=null">
+            <span class="cat-icon" v-html="iconAll"></span>
+            Todos
+          </button>
+          <button v-for="c in categories" :key="c" class="cat-btn" :class="{active:activeCat===c}" @click="activeCat=c">
+            <span class="cat-icon" v-html="catIconSvg(c)"></span>
+            {{ c }}
           </button>
         </div>
-      </div>
-    </transition>
 
-    <div class="manuals-layout">
-      <div class="card cat-panel">
-
-        <!-- ── MARCAS ── -->
-        <h3 class="cat-title">Marca</h3>
-        <div class="brand-cards">
-        <button class="brand-card" :class="{active: activeBrand==='Scania'}" @click="toggleBrand('Scania')">
-          <img :src="scaniaLogo" alt="Scania" class="brand-img" />
-          <span class="brand-label">Scania</span>
-            </button>
-
-        <button class="brand-card" :class="{active: activeBrand==='Volkswagen'}" @click="toggleBrand('Volkswagen')">
-          <img :src="vwLogo" alt="Volkswagen" class="brand-img" />
-          <span class="brand-label">Volkswagen</span>
-            </button>
-        </div>
-
-        <div class="cat-divider"></div>
-
-        <!-- ── CATEGORÍAS ── -->
-        <h3 class="cat-title">Categorías</h3>
-        <button class="cat-btn" :class="{active:!activeCat}" @click="activeCat=null">
-          <span class="cat-icon" v-html="iconAll"></span>
-          Todos
-        </button>
-        <button v-for="c in categories" :key="c" class="cat-btn" :class="{active:activeCat===c}" @click="activeCat=c">
-          <span class="cat-icon" v-html="catIconSvg(c)"></span>
-          {{ c }}
-        </button>
-      </div>
-
-      <div class="manuals-area">
-        <!-- Chips de filtros activos -->
-        <div v-if="activeBrand || activeCat" class="active-filters">
-          <span class="filter-chip" v-if="activeBrand" @click="activeBrand=null">
-            {{ activeBrand }} ✕
-          </span>
-          <span class="filter-chip" v-if="activeCat" @click="activeCat=null">
-            {{ activeCat }} ✕
-          </span>
-          <button class="clear-all" @click="activeBrand=null; activeCat=null">Limpiar filtros</button>
-        </div>
-
-        <!-- ── CUADRO INFORMATIVO / TARJETA DE RESUMEN (siempre visible) ── -->
-        <div class="summary-card">
-          <div class="summary-icon" v-html="summaryIconSvg"></div>
-          <div class="summary-body">
-            <h2 class="summary-title">{{ displayedSummary.title }}</h2>
-            <p class="summary-desc">{{ displayedSummary.desc }}</p>
+        <div class="manuals-area">
+          <!-- Chips de filtros activos -->
+          <div v-if="activeBrand || activeCat" class="active-filters">
+            <span class="filter-chip" v-if="activeBrand" @click="activeBrand=null">
+              {{ activeBrand }} ✕
+            </span>
+            <span class="filter-chip" v-if="activeCat" @click="activeCat=null">
+              {{ activeCat }} ✕
+            </span>
+            <button class="clear-all" @click="activeBrand=null; activeCat=null">Limpiar filtros</button>
           </div>
-        </div>
 
-        <div v-if="loading" class="empty-state"><span class="empty-icon">⏳</span><p>Cargando manuales...</p></div>
+          <!-- ── CUADRO INFORMATIVO / TARJETA DE RESUMEN (siempre visible) ── -->
+          <div class="summary-card">
+            <div class="summary-icon" v-html="summaryIconSvg"></div>
+            <div class="summary-body">
+              <h2 class="summary-title">{{ displayedSummary.title }}</h2>
+              <p class="summary-desc">{{ displayedSummary.desc }}</p>
+            </div>
+          </div>
 
-        <!-- Sin resultados: mensaje compacto ya que el cuadro de resumen siempre está arriba -->
-        <div v-else-if="filtered.length===0" class="empty-inline">
-          <span>📭</span>
-          <span>
-            No hay manuales{{ activeCat ? ` en "${activeCat}"` : '' }}{{ activeBrand ? ` de ${activeBrand}` : '' }} disponibles todavía.
-          </span>
-        </div>
+          <div v-if="loading" class="empty-state"><span class="empty-icon">⏳</span><p>Cargando manuales...</p></div>
 
-        <div v-else class="manuals-grid">
-          <div v-for="m in filtered" :key="m.id" class="card manual-card">
-            <div class="mc-top">
-              <div class="mc-pdf" :class="brandClass(m)">
-                 <img v-if="brandLogo(m)" :src="brandLogo(m)" class="mc-logo-img" alt="" />
-                  <span v-else>{{ brandTag(m) }}</span>
+          <!-- Sin resultados: mensaje compacto ya que el cuadro de resumen siempre está arriba -->
+          <div v-else-if="filtered.length===0" class="empty-inline">
+            <span>📭</span>
+            <span>
+              No hay manuales{{ activeCat ? ` en "${activeCat}"` : '' }}{{ activeBrand ? ` de ${activeBrand}` : '' }} disponibles todavía.
+            </span>
+          </div>
+
+          <div v-else class="manuals-grid">
+            <div v-for="m in filtered" :key="m.id" class="card manual-card">
+              <div class="mc-top">
+                <div class="mc-pdf" :class="brandClass(m)">
+                   <img v-if="brandLogo(m)" :src="brandLogo(m)" class="mc-logo-img" alt="" />
+                    <span v-else>{{ brandTag(m) }}</span>
+                  </div>
+                <div class="mc-info">
+                  <h4 class="mc-title">{{ m.title }}</h4>
+                  <p class="mc-meta">{{ m.category }} · {{ m.size_mb }} MB · {{ m.uploaded_at }}</p>
+                  <p v-if="m.description" class="mc-desc">{{ m.description }}</p>
                 </div>
-              <div class="mc-info">
-                <h4 class="mc-title">{{ m.title }}</h4>
-                <p class="mc-meta">{{ m.category }} · {{ m.size_mb }} MB · {{ m.uploaded_at }}</p>
-                <p v-if="m.description" class="mc-desc">{{ m.description }}</p>
+              </div>
+              <div class="mc-actions">
+                <a :href="m.url" target="_blank" class="btn-secondary btn-sm">👁 Ver</a>
+                <a :href="m.url" :download="m.title" class="btn-secondary btn-sm">⬇ Descargar</a>
+                <button v-if="isAdmin()" class="btn-del-sm" @click="del(m.id)">🗑</button>
               </div>
             </div>
-            <div class="mc-actions">
-              <a :href="m.url" target="_blank" class="btn-secondary btn-sm">👁 Ver</a>
-              <a :href="m.url" :download="m.title" class="btn-secondary btn-sm">⬇ Descargar</a>
-              <button v-if="isAdmin()" class="btn-del-sm" @click="del(m.id)">🗑</button>
-            </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
+
+    <!-- ════════════════ PESTAÑA: REPUESTOS ════════════════ -->
+    <section v-else class="rep">
+
+      <div class="card rep-toolbar">
+        <input
+          v-model="repQuery"
+          @input="onRepSearch"
+          type="search"
+          class="input rep-search"
+          placeholder="Buscar por código o descripción (ej: ACT00175, filtro aceite)"
+          aria-label="Buscar repuestos"
+        />
+        <select v-model="repClase" @change="onRepFilter" class="input rep-select" aria-label="Filtrar por clase">
+          <option value="">Todas las clases</option>
+          <option v-for="c in repClases" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <select v-model="repNivel" @change="onRepFilter" class="input rep-select" aria-label="Filtrar por nivel de sistema">
+          <option value="">Todos los sistemas</option>
+          <option v-for="n in repNiveles" :key="n" :value="n">{{ n }}</option>
+        </select>
+        <button v-if="repHasFilters" class="btn-secondary btn-sm" @click="clearRepFilters">Limpiar</button>
+        <template v-if="isAdmin()">
+          <button class="btn-primary" :disabled="repUploading" @click="$refs.repFi.click()">
+            {{ repUploading ? 'Cargando Excel...' : 'Cargar Excel' }}
+          </button>
+          <input ref="repFi" type="file" accept=".xlsx" style="display:none" @change="uploadRepExcel" />
+        </template>
+      </div>
+
+      <p v-if="repNotice" class="rep-notice">{{ repNotice }}</p>
+      <p v-if="repError" class="err-msg">{{ repError }}</p>
+
+      <div class="rep-meta">
+        <span v-if="repLoading">Buscando...</span>
+        <span v-else-if="rep.total > 0">{{ repSummary }}</span>
+      </div>
+
+      <div class="card rep-table-wrap" :class="{ 'is-loading': repLoading }">
+        <table v-if="rep.items.length" class="rep-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Clase</th>
+              <th>Sistema</th>
+              <th>UDM</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="r in rep.items" :key="r.id">
+              <tr class="rep-row">
+                <td class="rep-code">{{ r.pieza }}</td>
+                <td class="rep-desc">{{ r.descripcion }}</td>
+                <td>{{ r.clase || '—' }}</td>
+                <td>{{ r.nivel_sistema || '—' }}</td>
+                <td>{{ r.udm || '—' }}</td>
+                <td class="rep-actions">
+                  <button class="btn-secondary btn-sm" @click="copyCode(r)">
+                    {{ copiedId === r.id ? 'Copiado' : 'Copiar código' }}
+                  </button>
+                  <button class="btn-secondary btn-sm" :aria-expanded="expandedId === r.id" @click="toggleDetail(r.id)">
+                    {{ expandedId === r.id ? 'Ocultar' : 'Detalle' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="expandedId === r.id" class="rep-detail">
+                <td colspan="6">
+                  <dl class="rep-detail-grid">
+                    <div><dt>Jerarquía de la pieza</dt><dd>{{ r.jerarquia_pieza || '—' }}</dd></div>
+                    <div><dt>Nivel de montaje</dt><dd>{{ r.nivel_montaje || '—' }}</dd></div>
+                    <div><dt>Nivel de componente</dt><dd>{{ r.nivel_componente || '—' }}</dd></div>
+                  </dl>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+
+        <div v-else-if="!repLoading && !repError" class="rep-empty">
+          <template v-if="repHasFilters">No hay repuestos que coincidan. Prueba con otro código o con menos palabras.</template>
+          <template v-else>
+            El catálogo está vacío.
+            <span v-if="isAdmin()">Usa «Cargar Excel» para importar los repuestos.</span>
+          </template>
+        </div>
+      </div>
+
+      <div v-if="repTotalPages > 1" class="rep-pager">
+        <button class="btn-secondary btn-sm" :disabled="repPage <= 1 || repLoading" @click="goRepPage(repPage - 1)">Anterior</button>
+        <span>Página {{ repPage }} de {{ repTotalPages }}</span>
+        <button class="btn-secondary btn-sm" :disabled="repPage >= repTotalPages || repLoading" @click="goRepPage(repPage + 1)">Siguiente</button>
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -161,7 +271,7 @@
 import manualsHeroImg from '../assets/manuales-hero.png'
 import scaniaLogo from '../assets/scania.png'
 import vwLogo from '../assets/volkswagen.png'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useAuth } from '../auth.js'
 const { isAdmin } = useAuth()
@@ -176,12 +286,23 @@ const uploading  = ref(false)
 const uploadErr  = ref('')
 const form = ref({ title:'', description:'', category:'', brand:'', file:null })
 
+// ── Pestañas ──
+const tab = ref('manuals')
+
 // Datos reales para el hero
-const heroStats = computed(() => [
-  { value: `${manuals.value.length}`, label: 'Manuales disponibles' },
-  { value: `${categories.value.length}`, label: 'Categorías' },
-  { value: '2', label: 'Marcas' },
-])
+const heroStats = computed(() => {
+  if (tab.value === 'repuestos') {
+    const stats = []
+    if (repCatalogTotal.value !== null) stats.push({ value: repCatalogTotal.value.toLocaleString('es-CO'), label: 'Repuestos' })
+    if (repClases.value.length)         stats.push({ value: `${repClases.value.length}`, label: 'Clases' })
+    return stats
+  }
+  return [
+    { value: `${manuals.value.length}`, label: 'Manuales disponibles' },
+    { value: `${categories.value.length}`, label: 'Categorías' },
+    { value: '2', label: 'Marcas' },
+  ]
+})
 
 // Filtra por marca Y categoría
 const filtered = computed(() => {
@@ -333,7 +454,136 @@ const del = async id => {
   try { await axios.delete(`/api/manuals/${id}`); await load() } catch {}
 }
 
+/* ════════════════════════════════════════════════════════════════
+   REPUESTOS
+   ════════════════════════════════════════════════════════════════ */
+
+const REP_PAGE_SIZE = 50
+
+const rep             = ref({ items: [], total: 0 })
+const repLoading      = ref(false)
+const repError        = ref('')
+const repNotice       = ref('')
+const repQuery        = ref('')
+const repClase        = ref('')
+const repNivel        = ref('')
+const repPage         = ref(1)
+const repClases       = ref([])
+const repNiveles      = ref([])
+const repCatalogTotal = ref(null)   // total del catálogo sin filtros (para el hero)
+const repLoaded       = ref(false)
+const repUploading    = ref(false)
+const expandedId      = ref(null)
+const copiedId        = ref(null)
+
+const repHasFilters = computed(() => !!(repQuery.value.trim() || repClase.value || repNivel.value))
+const repTotalPages = computed(() => Math.max(1, Math.ceil(rep.value.total / REP_PAGE_SIZE)))
+const repSummary = computed(() => {
+  const n = rep.value.total.toLocaleString('es-CO')
+  const noun = rep.value.total === 1 ? 'repuesto' : 'repuestos'
+  return repHasFilters.value ? `${n} ${noun} encontrados` : `${n} ${noun} en el catálogo`
+})
+
+// Si el usuario escribe rápido, solo cuenta la última respuesta
+let repReq = 0
+const fetchRepuestos = async () => {
+  const id = ++repReq
+  repLoading.value = true
+  repError.value = ''
+  try {
+    const { data } = await axios.get('/api/repuestos', {
+      params: {
+        q: repQuery.value.trim() || undefined,
+        clase: repClase.value || undefined,
+        nivel_sistema: repNivel.value || undefined,
+        page: repPage.value,
+        page_size: REP_PAGE_SIZE,
+      },
+    })
+    if (id !== repReq) return
+    rep.value = data
+    expandedId.value = null
+    if (!repHasFilters.value) repCatalogTotal.value = data.total
+  } catch (e) {
+    if (id !== repReq) return
+    repError.value = e.response?.data?.detail || 'No se pudo cargar el catálogo de repuestos.'
+  } finally {
+    if (id === repReq) repLoading.value = false
+  }
+}
+
+const loadRepFilters = async () => {
+  try {
+    const { data } = await axios.get('/api/repuestos/filtros')
+    repClases.value = data.clases
+    repNiveles.value = data.niveles
+  } catch {}
+}
+
+let repTimer = null
+const onRepSearch = () => {
+  clearTimeout(repTimer)
+  repTimer = setTimeout(() => { repPage.value = 1; fetchRepuestos() }, 300)
+}
+const onRepFilter = () => { repPage.value = 1; fetchRepuestos() }
+const clearRepFilters = () => {
+  repQuery.value = ''; repClase.value = ''; repNivel.value = ''
+  repPage.value = 1
+  fetchRepuestos()
+}
+const goRepPage = n => { repPage.value = n; fetchRepuestos() }
+const toggleDetail = id => { expandedId.value = expandedId.value === id ? null : id }
+
+const copyCode = async r => {
+  try {
+    await navigator.clipboard.writeText(r.pieza)
+  } catch {
+    // Respaldo para cuando el navegador no permite el portapapeles (p. ej. HTTP en red local)
+    const ta = document.createElement('textarea')
+    ta.value = r.pieza
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+  copiedId.value = r.id
+  setTimeout(() => { if (copiedId.value === r.id) copiedId.value = null }, 1500)
+}
+
+const uploadRepExcel = async e => {
+  const file = e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  repUploading.value = true
+  repNotice.value = ''
+  repError.value = ''
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const { data } = await axios.post('/api/repuestos/upload-excel', fd)
+    repNotice.value = `Carga completa: ${data.insertados} nuevos, ${data.actualizados} actualizados` +
+      (data.omitidos ? `, ${data.omitidos} filas omitidas.` : '.')
+    repPage.value = 1
+    await Promise.all([fetchRepuestos(), loadRepFilters()])
+  } catch (err) {
+    repError.value = err.response?.data?.detail || 'No se pudo cargar el Excel.'
+  } finally {
+    repUploading.value = false
+  }
+}
+
+// Los repuestos se piden la primera vez que se abre la pestaña
+const openTab = t => {
+  tab.value = t
+  if (t === 'repuestos' && !repLoaded.value) {
+    repLoaded.value = true
+    fetchRepuestos()
+    loadRepFilters()
+  }
+}
+
 onMounted(load)
+onBeforeUnmount(() => clearTimeout(repTimer))
 </script>
 
 <style scoped>
@@ -374,6 +624,17 @@ onMounted(load)
 .manuals-hero-stats { display: flex; gap: 32px; flex-wrap: wrap; }
 .mh-stat-value { font-size: 26px; font-weight: 900; color: #fff; line-height: 1; }
 .mh-stat-label { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ══ PESTAÑAS ══ */
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+.tab-btn {
+  background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-1px;
+  padding:12px 22px; font-family:inherit; font-size:14px; font-weight:600;
+  color:var(--text-muted); cursor:pointer; transition:color .15s, border-color .15s;
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-btn:focus-visible { outline:2px solid var(--primary); outline-offset:-2px; border-radius:6px; }
 
 .page-header--slim { justify-content: flex-end; margin-top: -8px; }
 
@@ -466,6 +727,39 @@ onMounted(load)
 .btn-del-sm:hover { background:var(--danger); color:#fff; }
 
 /* ════════════════════════════════════════════════════════════════
+   REPUESTOS
+   ════════════════════════════════════════════════════════════════ */
+
+.rep-toolbar { padding:16px; margin-bottom:14px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.rep-search  { flex:1 1 320px; min-width:240px; }
+.rep-select  { flex:0 1 190px; min-width:150px; }
+
+.rep-notice  { color:var(--success); font-size:13px; margin-bottom:10px; }
+.rep-meta    { font-size:13px; color:var(--text-muted); margin-bottom:10px; min-height:20px; }
+
+.rep-table-wrap { padding:0; overflow-x:auto; transition:opacity .15s; }
+.rep-table-wrap.is-loading { opacity:.55; }
+.rep-table { width:100%; border-collapse:collapse; font-size:13px; }
+.rep-table th {
+  text-align:left; padding:12px 14px; font-size:12px; font-weight:700;
+  color:var(--text-muted); background:var(--bg); border-bottom:1px solid var(--border); white-space:nowrap;
+}
+.rep-table td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+.rep-row:hover td { background:var(--bg); }
+.rep-code    { font-weight:800; color:var(--primary); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.rep-desc    { min-width:260px; line-height:1.4; }
+.rep-actions { white-space:nowrap; text-align:right; }
+.rep-actions .btn-secondary + .btn-secondary { margin-left:6px; }
+
+.rep-detail td { background:var(--bg); padding:14px 18px; }
+.rep-detail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px 24px; margin:0; }
+.rep-detail-grid dt { font-size:11px; color:var(--text-muted); margin-bottom:2px; }
+.rep-detail-grid dd { margin:0; font-size:13px; }
+
+.rep-empty { padding:40px 16px; text-align:center; color:var(--text-muted); font-size:14px; }
+.rep-pager { display:flex; justify-content:center; align-items:center; gap:16px; margin-top:16px; font-size:13px; color:var(--text-muted); }
+
+/* ════════════════════════════════════════════════════════════════
    ICONOS SVG DE CATEGORÍAS
    ════════════════════════════════════════════════════════════════ */
 
@@ -524,5 +818,6 @@ onMounted(load)
   .manuals-hero { height: 300px; margin: -16px -16px 24px; }
   .manuals-hero-overlay { padding: 20px; }
   .manuals-hero-stats { gap: 20px; }
+  .rep-select { flex:1 1 100%; }
 }
 </style>
