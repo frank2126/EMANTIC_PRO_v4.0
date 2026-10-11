@@ -32,7 +32,7 @@
           </button>
         </div>
       </div>
-      <button class="fr" @click="store.resetFiltrosDPV()">✕ Limpiar</button>
+      <button class="fr" @click="limpiar">✕ Limpiar</button>
       <div class="fi">
         <span class="fin">{{ store.dpvFiltrado.length }}</span>
         <span class="fil">eventos</span>
@@ -105,8 +105,8 @@
       </div>
     </div>
 
-    <!-- DPV Mensual — EMASIVO10 -->
-    <div class="card fleet-card">
+    <!-- DPV Mensual — EMASIVO10 (solo si la unidad UF-10 está activa o no hay unidad elegida) -->
+    <div v-if="showE10" class="card fleet-card">
       <div class="fleet-block">
         <div class="fleet-header">
           <div class="fleet-id">
@@ -157,8 +157,8 @@
       </div>
     </div>
 
-    <!-- DPV Mensual — EMASIVO16 -->
-    <div class="card fleet-card">
+    <!-- DPV Mensual — EMASIVO16 (solo si la unidad UF-16 está activa o no hay unidad elegida) -->
+    <div v-if="showE16" class="card fleet-card">
       <div class="fleet-block">
         <div class="fleet-header">
           <div class="fleet-id">
@@ -341,11 +341,56 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useDashboardStore } from './dashboardStore.js'
 
 const store = useDashboardStore()
 const CIRC  = 2 * Math.PI * 52
+
+// ══ MES EN CURSO POR DEFECTO ══
+// Al abrir el dashboard se filtra el mes en curso. Si ese mes todavía no tiene
+// eventos cargados en el DPV, se usa el último mes que sí tenga datos.
+const pad2 = n => String(n).padStart(2, '0')
+const mesEnCurso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
+}
+
+// Mes (YYYY-MM) de un registro del DPV
+const mesDeRegistro = r => {
+  const f = r?.fecha_inmovilizacion || r?.fecha || r?.fecha_inicio
+  return typeof f === 'string' && /^\d{4}-\d{2}/.test(f) ? f.slice(0, 7) : null
+}
+
+function mesPorDefecto() {
+  const meses  = new Set(store.dpvRaw.map(mesDeRegistro).filter(Boolean))
+  const actual = mesEnCurso()
+  if (!meses.size || meses.has(actual)) return actual
+  return [...meses].sort().pop()
+}
+
+let mesAplicado = false
+function aplicarMesPorDefecto() {
+  if (mesAplicado) return
+  if (store.dpvFiltros.mes) { mesAplicado = true; return }   // ya hay un mes elegido: se respeta
+  if (!store.dpvRaw.length) return                            // esperar a que lleguen los datos
+  store.dpvFiltros.mes = mesPorDefecto()
+  mesAplicado = true
+}
+watch(() => store.dpvRaw.length, aplicarMesPorDefecto, { immediate: true })
+
+// "Limpiar" quita los filtros y vuelve al mes en curso
+function limpiar() {
+  store.resetFiltrosDPV()
+  mesAplicado = false
+  aplicarMesPorDefecto()
+}
+
+// ══ UNIDAD → QUÉ GRÁFICA DPV MENSUAL SE MUESTRA ══
+// Sin unidad elegida: ambas. Con UF-10: solo EMASIVO10. Con UF-16: solo EMASIVO16.
+const ufSel   = computed(() => store.dpvFiltros.uf || [])
+const showE10 = computed(() => ufSel.value.length === 0 || ufSel.value.includes('UF10'))
+const showE16 = computed(() => ufSel.value.length === 0 || ufSel.value.includes('UF16'))
 
 // ── Mapa de calor por DÍA ──
 const maxHeatDia = computed(() => Math.max(1, ...store.dpvHeatmapDias.map(d => d.total)))
