@@ -6,11 +6,13 @@
       <div class="manuals-hero-overlay">
         <div class="manuals-hero-content">
           <div class="manuals-hero-eyebrow">EMASIVO · DOCUMENTACIÓN TÉCNICA</div>
-          <h1 class="manuals-hero-title">{{ tab === 'manuals' ? 'Biblioteca de Manuales Técnicos' : 'Catálogo de Repuestos' }}</h1>
+          <h1 class="manuals-hero-title">{{ tab === 'manuals' ? 'Biblioteca de Manuales Técnicos' : tab === 'repuestos' ? 'Catálogo de Repuestos' : 'Diagnóstico Técnico de Flota' }}</h1>
           <p class="manuals-hero-sub">
             {{ tab === 'manuals'
               ? 'Manuales oficiales Scania y Volkswagen para el diagnóstico, mantenimiento y reparación de la flota.'
-              : 'Busca el código de cada repuesto para solicitarlo correctamente.' }}
+              : tab === 'repuestos'
+              ? 'Busca el código de cada repuesto para solicitarlo correctamente.'
+              : 'Matrices de fallas, procedimientos con torques y árbol de diagnóstico interactivo por sistema.' }}
           </p>
 
           <div v-if="heroStats.length" class="manuals-hero-stats">
@@ -27,6 +29,7 @@
     <div class="tabs" role="tablist">
       <button class="tab-btn" :class="{active: tab==='manuals'}" role="tab" :aria-selected="tab==='manuals'" @click="openTab('manuals')">Manuales</button>
       <button class="tab-btn" :class="{active: tab==='repuestos'}" role="tab" :aria-selected="tab==='repuestos'" @click="openTab('repuestos')">Repuestos</button>
+      <button class="tab-btn" :class="{active: tab==='diagnostico'}" role="tab" :aria-selected="tab==='diagnostico'" @click="openTab('diagnostico')">Diagnóstico</button>
     </div>
 
     <!-- ════════════════ PESTAÑA: MANUALES ════════════════ -->
@@ -169,7 +172,7 @@
     </template>
 
     <!-- ════════════════ PESTAÑA: REPUESTOS ════════════════ -->
-    <section v-else class="rep">
+    <section v-else-if="tab === 'repuestos'" class="rep">
 
       <div class="card rep-toolbar">
         <input
@@ -263,6 +266,120 @@
       </div>
     </section>
 
+    <!-- ════════════════ PESTAÑA: DIAGNÓSTICO ════════════════ -->
+    <section v-else-if="tab === 'diagnostico'" class="diag">
+
+      <div class="card diag-toolbar">
+        <input
+          v-model="diagQuery"
+          @input="onDiagSearch"
+          type="search"
+          class="input diag-search"
+          placeholder="Buscar un síntoma (ej: no cierra, ruido en el eje, fuga de aceite)"
+          aria-label="Buscar síntoma"
+        />
+        <select v-model="diagActiveCat" class="input diag-select" aria-label="Filtrar por categoría">
+          <option value="">Todas las categorías</option>
+          <option v-for="c in diagCategorias" :key="c" :value="c">{{ diagCatLabel(c) }}</option>
+        </select>
+        <button v-if="diagQuery || diagActiveCat" class="btn-secondary btn-sm" @click="clearDiagFilters">Limpiar</button>
+      </div>
+
+      <!-- Vista de detalle de un sistema -->
+      <template v-if="diagSelected">
+        <button class="btn-secondary btn-sm diag-back" @click="closeSistema">← Volver a la lista</button>
+
+        <div class="card diag-detail">
+          <div class="diag-detail-head">
+            <div>
+              <span class="diag-badge">{{ diagCatLabel(diagSelected.category) }}</span>
+              <h2 class="diag-detail-title">{{ diagSelected.name }}</h2>
+              <p class="diag-detail-brands">{{ diagSelected.applicable_brands.join(' · ') }}</p>
+            </div>
+            <button class="btn-primary" @click="showWizard = true">🩺 Iniciar diagnóstico interactivo</button>
+          </div>
+
+          <p class="diag-detail-desc">{{ diagSelected.functional_description }}</p>
+
+          <h3 class="diag-section-title">Especificaciones</h3>
+          <div class="diag-table-wrap">
+            <table class="diag-table">
+              <thead><tr><th>Parámetro</th><th>Valor</th><th>Fuente</th></tr></thead>
+              <tbody>
+                <tr v-for="(s, i) in diagSelected.specs" :key="i">
+                  <td>{{ s.parameter }}</td>
+                  <td>{{ s.value }} {{ s.unit }}</td>
+                  <td><span class="diag-source" :class="s.source">{{ s.source === 'manual' ? 'Verificado OEM' : 'Referencia general' }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="diag-section-title">Matriz de fallas</h3>
+          <div class="diag-table-wrap">
+            <table class="diag-table">
+              <thead><tr><th>Síntoma</th><th>Causa raíz</th><th>Verificación</th><th>Criterio de aceptación</th></tr></thead>
+              <tbody>
+                <tr v-for="(f, i) in diagSelected.fault_matrix" :key="i" :class="{ 'diag-row-match': diagLastQuery && f.symptom.toLowerCase().includes(diagLastQuery) }">
+                  <td>{{ f.symptom }}</td>
+                  <td>{{ f.root_cause }}</td>
+                  <td>{{ f.verification_method }}</td>
+                  <td>{{ f.acceptance_criteria }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="diag-section-title">Procedimiento: {{ diagSelected.procedure.title }}</h3>
+          <ul v-if="diagSelected.procedure.safety_warnings.length" class="diag-warnings">
+            <li v-for="(w, i) in diagSelected.procedure.safety_warnings" :key="i">⚠ {{ w }}</li>
+          </ul>
+          <ol class="diag-steps">
+            <li v-for="s in diagSelected.procedure.steps" :key="s.order">
+              <strong>{{ s.title }}.</strong> {{ s.description }}
+              <span v-if="s.torques_nm && s.torques_nm.length" class="diag-torques">
+                <span v-for="(t, i) in s.torques_nm" :key="i" class="diag-torque-chip">{{ t.label }}: {{ t.value_nm }} Nm</span>
+              </span>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Modal del asistente de diagnóstico -->
+        <div v-if="showWizard" class="diag-modal-overlay" @click.self="showWizard = false">
+          <DiagnosticWizard :tree="diagSelected.diagnostic_tree" @close="showWizard = false" />
+        </div>
+      </template>
+
+      <!-- Vista de lista -->
+      <template v-else>
+        <div v-if="diagLoading" class="empty-state"><span class="empty-icon">⏳</span><p>Cargando sistemas...</p></div>
+
+        <div v-else-if="diagSearching" class="diag-search-results">
+          <p class="diag-results-meta">{{ diagSearchResults.length }} coincidencia(s) para "{{ diagQuery }}"</p>
+          <div v-if="diagSearchResults.length === 0" class="empty-inline">
+            <span>📭</span><span>No se encontraron fallas con ese síntoma.</span>
+          </div>
+          <div v-for="(r, i) in diagSearchResults" :key="i" class="card diag-result-card" @click="openSistema(r.sistema_id)">
+            <p class="diag-result-symptom">{{ r.symptom }}</p>
+            <p class="diag-result-system">{{ r.sistema_name }}</p>
+          </div>
+        </div>
+
+        <div v-else-if="diagFilteredSistemas.length===0" class="empty-inline">
+          <span>📭</span><span>No hay sistemas{{ diagActiveCat ? ` en "${diagCatLabel(diagActiveCat)}"` : '' }} documentados todavía.</span>
+        </div>
+
+        <div v-else class="diag-grid">
+          <div v-for="s in diagFilteredSistemas" :key="s.id" class="card diag-card" @click="openSistema(s.id)">
+            <span class="diag-badge">{{ diagCatLabel(s.category) }}</span>
+            <h4 class="diag-card-title">{{ s.name }}</h4>
+            <p class="diag-card-brands">{{ s.applicable_brands.join(' · ') }}</p>
+            <p class="diag-card-meta">{{ s.total_fallas }} fallas documentadas · {{ s.total_pasos }} pasos de procedimiento</p>
+          </div>
+        </div>
+      </template>
+    </section>
+
   </div>
 </template>
 
@@ -271,6 +388,7 @@
 import manualsHeroImg from '../assets/manuales-hero.png'
 import scaniaLogo from '../assets/scania.png'
 import vwLogo from '../assets/volkswagen.png'
+import DiagnosticWizard from '../components/DiagnosticWizard.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useAuth } from '../auth.js'
@@ -295,6 +413,12 @@ const heroStats = computed(() => {
     const stats = []
     if (repCatalogTotal.value !== null) stats.push({ value: repCatalogTotal.value.toLocaleString('es-CO'), label: 'Repuestos' })
     if (repClases.value.length)         stats.push({ value: `${repClases.value.length}`, label: 'Clases' })
+    return stats
+  }
+  if (tab.value === 'diagnostico') {
+    const stats = []
+    if (diagSistemas.value.length)   stats.push({ value: `${diagSistemas.value.length}`, label: 'Sistemas documentados' })
+    if (diagCategorias.value.length) stats.push({ value: `${diagCategorias.value.length}`, label: 'Categorías' })
     return stats
   }
   return [
@@ -572,7 +696,78 @@ const uploadRepExcel = async e => {
   }
 }
 
-// Los repuestos se piden la primera vez que se abre la pestaña
+/* ════════════════════════════════════════════════════════════════
+   DIAGNÓSTICO
+   ════════════════════════════════════════════════════════════════ */
+
+const diagSistemas      = ref([])
+const diagCategorias    = ref([])
+const diagLoading       = ref(false)
+const diagLoaded        = ref(false)
+const diagActiveCat     = ref('')
+const diagQuery         = ref('')
+const diagLastQuery     = ref('')
+const diagSearching     = ref(false)
+const diagSearchResults = ref([])
+const diagSelected      = ref(null)
+const showWizard        = ref(false)
+
+const DIAG_CAT_LABELS = {
+  tren_motriz: 'Tren Motriz',
+  chasis: 'Chasis',
+  neumatico: 'Sistema Neumático',
+  electrico: 'Sistema Eléctrico',
+  emisiones: 'Emisiones',
+  accesibilidad: 'Accesibilidad',
+}
+const diagCatLabel = c => DIAG_CAT_LABELS[c] || c
+
+const diagFilteredSistemas = computed(() => {
+  if (!diagActiveCat.value) return diagSistemas.value
+  return diagSistemas.value.filter(s => s.category === diagActiveCat.value)
+})
+
+const loadDiagnostico = async () => {
+  diagLoading.value = true
+  try {
+    const [s, c] = await Promise.all([
+      axios.get('/api/diagnostico/sistemas'),
+      axios.get('/api/diagnostico/categorias'),
+    ])
+    diagSistemas.value   = s.data
+    diagCategorias.value = c.data
+  } catch {} finally { diagLoading.value = false }
+}
+
+let diagTimer = null
+const onDiagSearch = () => {
+  clearTimeout(diagTimer)
+  diagTimer = setTimeout(runDiagSearch, 300)
+}
+const runDiagSearch = async () => {
+  const q = diagQuery.value.trim()
+  if (!q) { diagSearching.value = false; diagSearchResults.value = []; diagLastQuery.value = ''; return }
+  diagSearching.value = true
+  diagLastQuery.value = q.toLowerCase()
+  try {
+    const { data } = await axios.get(`/api/diagnostico/buscar/${encodeURIComponent(q)}`)
+    diagSearchResults.value = data
+  } catch { diagSearchResults.value = [] }
+}
+const clearDiagFilters = () => {
+  diagQuery.value = ''; diagActiveCat.value = ''
+  diagSearching.value = false; diagSearchResults.value = []; diagLastQuery.value = ''
+}
+
+const openSistema = async id => {
+  try {
+    const { data } = await axios.get(`/api/diagnostico/sistemas/${id}`)
+    diagSelected.value = data
+  } catch {}
+}
+const closeSistema = () => { diagSelected.value = null; showWizard.value = false }
+
+// Los repuestos y el diagnóstico se piden la primera vez que se abre cada pestaña
 const openTab = t => {
   tab.value = t
   if (t === 'repuestos' && !repLoaded.value) {
@@ -580,10 +775,14 @@ const openTab = t => {
     fetchRepuestos()
     loadRepFilters()
   }
+  if (t === 'diagnostico' && !diagLoaded.value) {
+    diagLoaded.value = true
+    loadDiagnostico()
+  }
 }
 
 onMounted(load)
-onBeforeUnmount(() => clearTimeout(repTimer))
+onBeforeUnmount(() => { clearTimeout(repTimer); clearTimeout(diagTimer) })
 </script>
 
 <style scoped>
@@ -819,5 +1018,70 @@ onBeforeUnmount(() => clearTimeout(repTimer))
   .manuals-hero-overlay { padding: 20px; }
   .manuals-hero-stats { gap: 20px; }
   .rep-select { flex:1 1 100%; }
+  .diag-select { flex:1 1 100%; }
+  .diag-detail-head { flex-direction:column; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DIAGNÓSTICO
+   ════════════════════════════════════════════════════════════════ */
+
+.diag-toolbar { padding:16px; margin-bottom:18px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.diag-search  { flex:1 1 360px; min-width:240px; }
+.diag-select  { flex:0 1 220px; min-width:170px; }
+
+.diag-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.diag-card { padding:20px; cursor:pointer; transition:box-shadow 0.2s, transform 0.15s; }
+.diag-card:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+.diag-card-title  { font-size:15px; font-weight:700; margin:8px 0 4px; line-height:1.3; }
+.diag-card-brands { font-size:11.5px; color:var(--text-muted); margin-bottom:8px; }
+.diag-card-meta   { font-size:11.5px; color:var(--text-muted); }
+
+.diag-badge {
+  display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.3px;
+  text-transform:uppercase; color:var(--primary); background:var(--primary-light);
+  border-radius:20px; padding:3px 10px;
+}
+
+.diag-back { margin-bottom:14px; }
+
+.diag-detail { padding:24px; }
+.diag-detail-head   { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+.diag-detail-title  { font-size:20px; font-weight:800; margin:8px 0 4px; }
+.diag-detail-brands { font-size:12.5px; color:var(--text-muted); }
+.diag-detail-desc   { font-size:13.5px; line-height:1.65; color:var(--text); margin-bottom:22px; white-space:pre-line; }
+
+.diag-section-title { font-size:14px; font-weight:800; color:var(--primary); margin:24px 0 10px; text-transform:uppercase; letter-spacing:.4px; }
+
+.diag-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; margin-bottom:8px; }
+.diag-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.diag-table th { text-align:left; padding:10px 12px; font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg); border-bottom:1px solid var(--border); white-space:nowrap; }
+.diag-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.45; }
+.diag-table tr:last-child td { border-bottom:none; }
+.diag-row-match { background: var(--primary-light); }
+
+.diag-source { font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; white-space:nowrap; }
+.diag-source.manual { background:#dcfce7; color:#166534; }
+.diag-source.general_reference { background:#fef3c7; color:#92400e; }
+
+.diag-warnings { list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:6px; }
+.diag-warnings li { font-size:12.5px; color:#92400e; background:#fef3c7; border-radius:8px; padding:8px 12px; }
+
+.diag-steps { padding-left:20px; display:flex; flex-direction:column; gap:12px; margin:0; }
+.diag-steps li { font-size:13px; line-height:1.55; }
+.diag-torques { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.diag-torque-chip { font-size:11px; font-weight:700; color:var(--primary); background:var(--primary-light); border-radius:8px; padding:3px 9px; }
+
+.diag-search-results  { display:flex; flex-direction:column; gap:10px; }
+.diag-results-meta    { font-size:13px; color:var(--text-muted); margin-bottom:4px; }
+.diag-result-card     { padding:14px 18px; cursor:pointer; transition:box-shadow .15s; }
+.diag-result-card:hover { box-shadow:var(--shadow-md); }
+.diag-result-symptom  { font-size:13.5px; font-weight:700; margin-bottom:2px; }
+.diag-result-system   { font-size:12px; color:var(--text-muted); }
+
+.diag-modal-overlay {
+  position:fixed; inset:0; background:rgba(6,46,35,0.45);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px; z-index:50;
 }
 </style>

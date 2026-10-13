@@ -228,12 +228,19 @@ class RoleAuditDB(Base):
     reason          = Column(Text, default="")
     created_at      = Column(DateTime, default=datetime.datetime.utcnow)
     ip_address      = Column(String(50), default="")
-    
+
     __table_args__ = (
         Index('idx_audit_user_id', 'user_id'),
         Index('idx_audit_admin_id', 'admin_id'),
         Index('idx_audit_created_at', 'created_at'),
     )
+
+class AppConfigDB(Base):
+    __tablename__ = "app_config"
+    key        = Column(String(100), primary_key=True)
+    value      = Column(Text, default="")
+    updated_by = Column(String(100), default="")
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 # ── FUNCIONES DE DEPENDENCIA ───────────────────────────────
 

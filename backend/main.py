@@ -40,8 +40,11 @@ from routes.health import router as health_router
 
 from routes.datos import router as datos_router
 
+from routes.app_config import router as app_config_router
 
- 
+from routes.diagnostico import router as diagnostico_router
+
+
 # Error handling
 
 from utils.error_handler import setup_exception_handlers
@@ -227,7 +230,11 @@ app.include_router(manuals_router)
 
 app.include_router(repuestos_router)
 
-app.include_router(health_router)
+app.include_router(health_router)   
+
+app.include_router(app_config_router)
+
+app.include_router(diagnostico_router)
 
 app.include_router(datos_router)  # /api/dpv, /api/ico, /api/disponibilidad, /api/dpv-mensual, /api/cargas
  

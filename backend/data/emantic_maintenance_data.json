@@ -1,0 +1,2530 @@
+{
+  "metadata": {
+    "title": "Guia Integral de Mantenimiento, Diagnostico y Reparacion - Flota Buses VW Volksbus y Scania",
+    "generated_for": "EMANTIC PRO",
+    "source_documents": [
+      "Manual Eje Trasero DANA 284 HD (VW/MAN)",
+      "Manual Sistema Multiplex Thoreb - Busscar de Colombia (MN-SG-02)",
+      "Manual Plataforma Elevadora Ortobras Serie 1100 (version original + V5)",
+      "Manual de Mantenimiento Vehiculos Series K (chasis: frenos, suspension, direccion, caja de cambios)",
+      "Manual Motor a Gas Scania OC 09 101/102/106 (Asistencia Tecnica)",
+      "WBSP 020 - Conocimiento del Producto TAURUS EURO VI (VW Volksbus / MAN Latin America)"
+    ],
+    "citation_convention": {
+      "manual": "dato tomado literalmente de uno de los manuales adjuntos",
+      "general_reference": "conocimiento de ingenieria estandar de la industria; verificar contra manual OEM especifico de VIN/anio-modelo antes de usarlo como criterio de aceptacion de taller"
+    }
+  },
+  "systems": [
+    {
+      "id": "euro6_aftertreatment",
+      "name": "Sistema de Postratamiento de Gases de Escape EURO VI (SCR + DPF)",
+      "category": "emisiones",
+      "applicable_brands": [
+        "VW Volksbus",
+        "MAN Latin America"
+      ],
+      "source_documents": [
+        "WBSP 020 - Conocimiento del Producto TAURUS EURO VI"
+      ],
+      "functional_description": "La norma EURO VI exige dos tecnologias de postratamiento trabajando en conjunto: SCR (Reduccion Catalitica Selectiva) con agente reductor UREA/DEF/ARLA 32, que se dosifica en la corriente de escape antes del catalizador SCR y al descomponerse termicamente libera amoniaco que reduce los NOx a N2 y H2O; y DPF (Filtro de Particulas Diesel), que retiene el hollin del escape y requiere regeneracion periodica (conversion termica del hollin en CO2) para no saturarse. La regeneracion del DPF ocurre en modo automatico durante la conduccion normal bajo carga sostenida, o en modo estatico con el vehiculo detenido: caja en neutro, freno de estacionamiento activado, motor en temperatura de trabajo, manteniendo presionado el boton de regeneracion (flecha arriba) unos 3 segundos sin pisar pedal alguno; el ciclo dura aproximadamente 45 minutos y se interrumpe si se pisa cualquier pedal, se engrana una marcha, se suelta el freno de estacionamiento o se apaga el motor, obligando a repetirlo completo. El nivel de UREA se indica como bajo a partir de 5% (parpadea hasta subir a 8%); por debajo de aproximadamente 2.5% el motor entra en modo de torque reducido. Dejar el tanque vacio por tiempo prolongado permite entrada de aire que puede cristalizar el agente reductor dentro de la unidad dosificadora, bloqueandola.",
+      "specs": [
+        {
+          "parameter": "Umbral de nivel UREA bajo",
+          "value": "<=5",
+          "unit": "%",
+          "notes": "parpadea hasta subir a 8%",
+          "source": "manual"
+        },
+        {
+          "parameter": "Umbral de torque reducido AdBlue",
+          "value": "<2.5",
+          "unit": "%",
+          "notes": "mensaje AdBlue Torque reducido",
+          "source": "manual"
+        },
+        {
+          "parameter": "Duracion de regeneracion estatica",
+          "value": "45",
+          "unit": "min",
+          "notes": "aproximado, con vehiculo detenido",
+          "source": "manual"
+        },
+        {
+          "parameter": "Duracion de regeneracion en conduccion",
+          "value": "35-40",
+          "unit": "min a 50 km/h",
+          "notes": "con carga sostenida, sin detenerse",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Testigo UREA parpadeando + mensaje de nivel bajo",
+          "root_cause": "Nivel de ARLA 32 menor o igual a 5% en el tanque",
+          "verification_method": "Lectura directa del visor de nivel en tablero",
+          "acceptance_criteria": "Rellenar antes de llegar a 2.5% para evitar reduccion de torque",
+          "source": "manual"
+        },
+        {
+          "symptom": "Mensaje AdBlue Torque reducido en tablero",
+          "root_cause": "Nivel de UREA menor a 2.5%, o calidad fuera de norma ISO 22241",
+          "verification_method": "Verificar nivel; si es correcto, escanear con herramienta OEM",
+          "acceptance_criteria": "El torque se restituye al normalizar nivel y calidad",
+          "source": "manual"
+        },
+        {
+          "symptom": "Testigos de regeneracion DPF persistentes",
+          "root_cause": "Ciclos de uso con trayectos cortos que impiden regeneracion automatica",
+          "verification_method": "Rodar 35-40 min a 50 km/h sin parar, o ejecutar regeneracion estatica",
+          "acceptance_criteria": "Testigos se apagan al completar; si persisten, derivar a taller especializado",
+          "source": "manual"
+        },
+        {
+          "symptom": "Regeneracion estatica se interrumpe repetidamente",
+          "root_cause": "Pedal activado, marcha puesta, freno soltado, o motor apagado durante el ciclo",
+          "verification_method": "Repetir asegurando las 4 condiciones de preparacion antes de iniciar",
+          "acceptance_criteria": "Ciclo completo sin interrupciones, aproximadamente 45 min",
+          "source": "manual"
+        },
+        {
+          "symptom": "Perdida de potencia sostenida con DPF saturado",
+          "root_cause": "Regeneraciones omitidas repetidamente; posible fallo de inyector UREA o sensor NOx",
+          "verification_method": "Escaneo OEM para codigo especifico; inspeccion boroscopica del DPF si se sospecha saturacion fisica",
+          "acceptance_criteria": "Verificar contra procedimiento del fabricante, no forzar regeneraciones sin diagnosticar causa raiz",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Unidad dosificadora de UREA bloqueada o cristalizada",
+          "root_cause": "Operacion prolongada con tanque casi vacio, entrada de aire al sistema",
+          "verification_method": "Confirmar historial de nivel bajo prolongado; dosificacion erratica pese a nivel de tanque correcto",
+          "acceptance_criteria": "Requiere lavado de la unidad dosificadora por Distribuidor Autorizado",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Regeneracion estatica forzada del DPF",
+        "safety_warnings": [
+          "Estacionar en area ventilada, lejos de materiales inflamables: la temperatura de escape es elevada durante el ciclo.",
+          "No interrumpir el ciclo una vez iniciado; una interrupcion obliga a repetirlo completo."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Ubicacion segura",
+            "description": "Estacionar el bus en area ventilada, lejos de materiales inflamables.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Preparar el vehiculo",
+            "description": "Aplicar el freno de estacionamiento y colocar la caja de cambios en neutro.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Temperatura de trabajo",
+            "description": "Llevar el motor a temperatura normal de trabajo; no iniciar en frio.",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Iniciar el ciclo",
+            "description": "Mantener presionado el boton de regeneracion (flecha arriba) aproximadamente 3 segundos, sin accionar pedal alguno.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Confirmar inicio",
+            "description": "Confirmar el cambio audible de regimen del motor, que marca el inicio efectivo del ciclo.",
+            "torques_nm": []
+          },
+          {
+            "order": 6,
+            "title": "No interrumpir",
+            "description": "No tocar pedales, no cambiar de marcha, no soltar el freno de estacionamiento, no apagar el motor durante el proceso.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Monitorear temperatura",
+            "description": "El testigo de alta temperatura de escape puede encenderse; es normal, mantener distancia del sistema de escape.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Esperar finalizacion",
+            "description": "Esperar unos 45 minutos hasta que el motor retorne a ralenti y se apague la indicacion de regeneracion.",
+            "torques_nm": []
+          },
+          {
+            "order": 9,
+            "title": "Reiniciar si se interrumpe",
+            "description": "Si el ciclo se interrumpe por cualquier causa, reiniciar el procedimiento completo desde el paso 2.",
+            "torques_nm": []
+          },
+          {
+            "order": 10,
+            "title": "Escalar si persiste",
+            "description": "Si tras una regeneracion estatica completa persisten los testigos, derivar a regeneracion forzada en taller especializado con herramienta OEM.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Testigo DPF / UREA activo en tablero: cual testigo?",
+            "branches": [
+              {
+                "label": "UREA nivel bajo",
+                "next": "n2"
+              },
+              {
+                "label": "DPF regeneracion requerida",
+                "next": "n4"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Verificar % en visor de nivel",
+            "next": "n3"
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Nivel menor a 2.5%?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n2a"
+              },
+              {
+                "label": "No, entre 2.5-8%",
+                "next": "n2b"
+              }
+            ]
+          },
+          "n2a": {
+            "type": "action",
+            "text": "Reabastecer ARLA 32 / UREA ISO 22241 de inmediato",
+            "next": "n7"
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Reabastecer en proxima oportunidad, monitorear",
+            "next": null
+          },
+          "n4": {
+            "type": "decision",
+            "text": "Es posible rodar 35-40 min a 50 km/h sin parar?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n5"
+              },
+              {
+                "label": "No",
+                "next": "n6"
+              }
+            ]
+          },
+          "n5": {
+            "type": "action",
+            "text": "Ejecutar regeneracion en conduccion con carga sostenida",
+            "next": "n8"
+          },
+          "n6": {
+            "type": "action",
+            "text": "Ejecutar regeneracion estatica: neutro + freno + boton 3 seg",
+            "next": "n8"
+          },
+          "n7": {
+            "type": "decision",
+            "text": "La dosificacion se normaliza?",
+            "branches": [
+              {
+                "label": "No, pese a nivel correcto",
+                "next": "n7a"
+              },
+              {
+                "label": "Si",
+                "next": "n9"
+              }
+            ]
+          },
+          "n7a": {
+            "type": "action",
+            "text": "Sospechar unidad dosificadora cristalizada: lavado por Distribuidor Autorizado",
+            "next": null
+          },
+          "n8": {
+            "type": "decision",
+            "text": "Los testigos se apagan?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n9"
+              },
+              {
+                "label": "No, persiste tras regeneracion estatica",
+                "next": "n10"
+              }
+            ]
+          },
+          "n9": {
+            "type": "action",
+            "text": "Ciclo completado, operacion normal",
+            "next": null
+          },
+          "n10": {
+            "type": "action",
+            "text": "Derivar a taller especializado: diagnostico OEM del sistema de postratamiento",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical cutaway engineering illustration, orthographic side view, of a Euro VI heavy-duty diesel bus exhaust aftertreatment system: DOC catalyst, DPF filter with visible soot-cake cross-section, SCR catalyst brick, and UREA/DEF dosing injector, with labeled arrows for exhaust flow direction and sensor locations. Clean technical line-art on white background, labels in Spanish (Catalizador DOC, Filtro DPF, Catalizador SCR, Inyector dosificador UREA, Sensor NOx), workshop reference diagram aesthetic, vector-illustration style, high contrast, precise engineering proportions, no photorealism."
+    },
+    {
+      "id": "chassis_k_brakes_wheels",
+      "name": "Chasis Linea K: Frenos Neumaticos, Ruedas y Neumaticos",
+      "category": "neumatico",
+      "applicable_brands": [
+        "VW/Scania Chasis Linea K"
+      ],
+      "source_documents": [
+        "Manual de Mantenimiento Vehiculos Series K"
+      ],
+      "functional_description": "El circuito neumatico usa una unidad APS (secado de aire) con recipiente desecante reemplazable. Los frenos de disco incorporan sensores de desgaste; en vehiculos con Scania Diagnos & Programmer 3 (SDP3) los graficos de barras horizontales muestran el porcentaje de material restante por rueda. El torque de tuercas de rueda (disco de acero o aluminio) es de 650 Nm, apretado en secuencia estrella con llave dinamometrica de rango 500 a 1500 Nm. En vehiculos con EBS, la prueba de frenado inicial en frenometro de rodillos se realiza con la corriente cortada en el interruptor de baterias.",
+      "specs": [
+        {
+          "parameter": "Grosor de disco nuevo",
+          "value": "45",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Grosor minimo permitido de disco",
+          "value": "37",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Variacion maxima de grosor por disco",
+          "value": "0.08",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Descentramiento maximo permitido",
+          "value": "0.20",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Grosor minimo de pastilla (disco 40mm)",
+          "value": "2",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Grosor minimo de pastilla (disco 37-40mm)",
+          "value": "4",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Umbral inspeccion visual, pinza con placa antipolvo",
+          "value": "30",
+          "unit": "% restante",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Umbral inspeccion visual, pinza sin placa antipolvo",
+          "value": "50",
+          "unit": "% restante",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion inicial freno de disco (frenometro)",
+          "value": "0.3-0.5",
+          "unit": "bar",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion inicial freno de tambor con amortiguador",
+          "value": "0.4-0.6",
+          "unit": "bar",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion inicial freno de tambor sin amortiguador",
+          "value": "0.3-0.5",
+          "unit": "bar",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque de tuercas de rueda (acero o aluminio)",
+          "value": "650",
+          "unit": "Nm",
+          "notes": "secuencia estrella, llave 500-1500 Nm",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque maximo recipiente desecante APS",
+          "value": "20",
+          "unit": "Nm",
+          "notes": "1/2 vuelta adicional tras contacto a mano",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Indicador SDP3 de desgaste bajo el umbral",
+          "root_cause": "Pastilla o disco cerca del limite de vida util",
+          "verification_method": "Lectura de grafico de barras SDP3; si esta bajo umbral, inspeccion visual directa",
+          "acceptance_criteria": "Sustituir antes de 2-4 mm de pastilla segun grosor de disco",
+          "source": "manual"
+        },
+        {
+          "symptom": "Descentramiento o variacion de grosor fuera de tolerancia",
+          "root_cause": "Disco alabeado por sobrecalentamiento o desgaste irregular",
+          "verification_method": "Medir con reloj comparador y micrometro en varios puntos",
+          "acceptance_criteria": "Descentramiento <= 0.20 mm; variacion <= 0.08 mm",
+          "source": "manual"
+        },
+        {
+          "symptom": "Presion de frenado inicial fuera de rango",
+          "root_cause": "Valvula, cilindro o ajuste descalibrado",
+          "verification_method": "Prueba en frenometro de rodillos, comparar contra tabla por tipo de freno",
+          "acceptance_criteria": "Ver tabla de presion inicial por tipo de freno",
+          "source": "manual"
+        },
+        {
+          "symptom": "Diferencia de presion entre circuito delantero y trasero",
+          "root_cause": "Fuga, valvula proporcionadora o regulador de carga defectuoso",
+          "verification_method": "Prueba comparativa de presion por circuito",
+          "acceptance_criteria": "Diferencia dentro de tolerancia del fabricante, documentar lectura",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Fuga de aire cerca del recipiente desecante tras un cambio",
+          "root_cause": "Par de apriete insuficiente o junta mal lubricada",
+          "verification_method": "Inspeccion con solucion jabonosa tras llenar el sistema",
+          "acceptance_criteria": "Sin burbujeo; apriete realizado a 20 Nm maximo",
+          "source": "manual"
+        },
+        {
+          "symptom": "Rueda con par de apriete incorrecto en auditoria",
+          "root_cause": "Reapriete no realizado tras servicio, o llave sin calibrar",
+          "verification_method": "Verificar con llave dinamometrica 500-1500 Nm en secuencia correcta",
+          "acceptance_criteria": "650 Nm en llanta de acero o aluminio",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Apriete de ruedas y reemplazo del recipiente desecante APS",
+        "safety_warnings": [
+          "Apoyar el vehiculo sobre caballetes aprobados antes de intervenir.",
+          "Descargar presion neumatica residual por la boquilla de llenado antes de desmontar el recipiente desecante."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Descargar presion",
+            "description": "Descargar el aire residual de la unidad APS por la boquilla de llenado del sistema de frenos, con un destornillador.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Retirar recipiente antiguo",
+            "description": "Limpiar y desmontar el recipiente desecante antiguo.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Lubricar juntas",
+            "description": "Lubricar la junta del recipiente nuevo, la rosca y el O-ring del deshidratador unicamente con grasa suministrada o grasa de frenos 319 308.",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Montar a mano",
+            "description": "Enroscar el recipiente nuevo a mano hasta que haga contacto.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Apriete final",
+            "description": "Apretar 1/2 vuelta adicional a mano o con llave dinamometrica.",
+            "torques_nm": [
+              {
+                "label": "Recipiente desecante APS (maximo)",
+                "value_nm": 20
+              }
+            ]
+          },
+          {
+            "order": 6,
+            "title": "Verificar fugas",
+            "description": "Llenar el sistema y verificar ausencia de fugas cerca del recipiente.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Montar rueda",
+            "description": "Apoyar el vehiculo sobre caballetes aprobados; montar la rueda y apretar las tuercas a mano en secuencia estrella.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Apriete en dos pasadas",
+            "description": "Con llave dinamometrica de 500 a 1500 Nm, apretar en dos pasadas: la primera al 50% del valor final, la segunda al valor final.",
+            "torques_nm": [
+              {
+                "label": "Tuercas de rueda (acero o aluminio)",
+                "value_nm": 650
+              }
+            ]
+          },
+          {
+            "order": 9,
+            "title": "Reapriete tras rodaje",
+            "description": "Reapretar tras 50-100 km de rodaje.",
+            "torques_nm": [
+              {
+                "label": "Tuercas de rueda (acero o aluminio)",
+                "value_nm": 650
+              }
+            ]
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Alerta o sospecha de falla de frenos: que indica el SDP3 o la inspeccion?",
+            "branches": [
+              {
+                "label": "Desgaste de pastilla bajo umbral",
+                "next": "n2"
+              },
+              {
+                "label": "Fuga de aire",
+                "next": "n3"
+              },
+              {
+                "label": "Frenado irregular o vibracion",
+                "next": "n4"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Medir grosor con pie de rey",
+            "next": "n2a"
+          },
+          "n2a": {
+            "type": "decision",
+            "text": "Menor a 2-4 mm segun grosor de disco?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n2b"
+              },
+              {
+                "label": "No",
+                "next": "n2c"
+              }
+            ]
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Sustituir pastillas o forros",
+            "next": null
+          },
+          "n2c": {
+            "type": "action",
+            "text": "Documentar y reprogramar proxima inspeccion",
+            "next": null
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Fuga cerca del recipiente desecante?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n3a"
+              },
+              {
+                "label": "No",
+                "next": "n3b"
+              }
+            ]
+          },
+          "n3a": {
+            "type": "action",
+            "text": "Revisar par de apriete (maximo 20 Nm), relubricar junta",
+            "next": null
+          },
+          "n3b": {
+            "type": "action",
+            "text": "Prueba con frenometro: presion inicial y diferencial entre circuitos",
+            "next": "n3c"
+          },
+          "n3c": {
+            "type": "decision",
+            "text": "Vehiculo con EBS?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n3d"
+              },
+              {
+                "label": "No",
+                "next": "n3e"
+              }
+            ]
+          },
+          "n3d": {
+            "type": "action",
+            "text": "Repetir prueba con bateria desconectada",
+            "next": null
+          },
+          "n3e": {
+            "type": "action",
+            "text": "Comparar contra tabla de presion inicial por tipo de freno",
+            "next": null
+          },
+          "n4": {
+            "type": "action",
+            "text": "Medir descentramiento y variacion de grosor del disco",
+            "next": "n4a"
+          },
+          "n4a": {
+            "type": "decision",
+            "text": "Fuera de 0.20mm descentramiento o 0.08mm variacion?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4b"
+              },
+              {
+                "label": "No",
+                "next": "n4c"
+              }
+            ]
+          },
+          "n4b": {
+            "type": "action",
+            "text": "Rectificar o sustituir disco",
+            "next": null
+          },
+          "n4c": {
+            "type": "action",
+            "text": "Disco dentro de tolerancia",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Exploded technical diagram, isometric view, of a heavy-duty bus air disc brake assembly: caliper with dust shield, brake pad with wear sensor, ventilated disc in cross-section with thickness callouts of 45mm new and 37mm minimum, wheel hub, torque wrench applying 650 Nm in star-pattern sequence shown as numbered arrows. Clean technical blueprint style, blue linework on white background, Spanish labels, workshop reference aesthetic, no photorealism."
+    },
+    {
+      "id": "chassis_k_suspension_steering",
+      "name": "Chasis Linea K: Suspension Neumatica (ELC) y Direccion",
+      "category": "chasis",
+      "applicable_brands": [
+        "VW/Scania Chasis Linea K"
+      ],
+      "source_documents": [
+        "Manual de Mantenimiento Vehiculos Series K"
+      ],
+      "functional_description": "La suspension usa fuelles neumaticos con ELC, control de nivel electronico: interruptores que ajustan la altura del chasis y accionan un testigo de cambio de nivel en el tablero. Un amortiguador con fuga se identifica porque la parte de menor diametro del vastago aparece cubierta de aceite y se humedece al tacto. La direccion es hidraulica asistida; el nivel de aceite debe estar entre las marcas de la varilla con el motor en marcha (con el motor parado el nivel sube unos 2 cm). Los fuelles neumaticos deben estar vacios antes de trabajar en ejes dirigidos con suspension neumatica.",
+      "specs": [
+        {
+          "parameter": "Torque juntas universales de columna de direccion",
+          "value": "47",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque abrazaderas barra de acoplamiento y articulacion",
+          "value": "170",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque mecanismo de servodireccion al bastidor",
+          "value": "560",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque soporte del mecanismo de servodireccion",
+          "value": "210",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Subida de nivel de aceite con motor parado",
+          "value": "2",
+          "unit": "cm",
+          "notes": "respecto al nivel con motor en marcha",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Testigo ELC no enciende al accionar el interruptor",
+          "root_cause": "Interruptor, cableado o valvula de nivel defectuosa",
+          "verification_method": "Accionar interruptor en ambas direcciones y observar testigo y retorno a nivel normal",
+          "acceptance_criteria": "El testigo debe encender y el bus debe volver al nivel normal al liberar",
+          "source": "manual"
+        },
+        {
+          "symptom": "Amortiguador con fuga visible",
+          "root_cause": "Sello interno degradado",
+          "verification_method": "Inspeccion visual: vastago humedo en la seccion de menor diametro",
+          "acceptance_criteria": "Sin presencia de aceite al tacto",
+          "source": "manual"
+        },
+        {
+          "symptom": "Casquillo de goma deformado o agrietado",
+          "root_cause": "Fatiga de material o sobrecarga",
+          "verification_method": "Inspeccion visual directa",
+          "acceptance_criteria": "Sin deformacion ni dano visible",
+          "source": "manual"
+        },
+        {
+          "symptom": "Juego irregular al girar el volante",
+          "root_cause": "Desgaste en mecanismo de servodireccion, engranaje angular o juntas del eje de volante",
+          "verification_method": "Un tecnico gira el volante mientras otro verifica juego en cada union",
+          "acceptance_criteria": "Sin holgura perceptible en ninguna union",
+          "source": "manual"
+        },
+        {
+          "symptom": "Nivel de aceite de servodireccion bajo",
+          "root_cause": "Fuga en el circuito hidraulico de direccion",
+          "verification_method": "Verificar varilla con motor en marcha, inspeccionar mangueras por dano de componentes del chasis",
+          "acceptance_criteria": "Nivel entre marcas MIN y MAX con motor en marcha",
+          "source": "manual"
+        },
+        {
+          "symptom": "Juego excesivo en cojinete de pivote de mangueta",
+          "root_cause": "Desgaste de cojinete o casquillo del pivote",
+          "verification_method": "Apoyar eje en caballetes, aplicar frenos, medir juego vertical con indicador de cuadrante",
+          "acceptance_criteria": "Dentro de tolerancia del fabricante para el tipo de eje; verificar valor exacto en el manual",
+          "source": "general_reference"
+        }
+      ],
+      "procedure": {
+        "title": "Comprobacion de uniones roscadas de direccion",
+        "safety_warnings": [
+          "Vaciar los fuelles neumaticos si hay suspension neumatica antes de trabajar en ejes dirigidos.",
+          "Usar siempre caballetes aprobados y correctamente apoyados."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Apoyar el vehiculo",
+            "description": "Apoyar el vehiculo sobre caballetes aprobados; vaciar los fuelles neumaticos si hay suspension neumatica.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Inspeccionar bloqueos",
+            "description": "Verificar que los dispositivos de bloqueo del brazo de mando, tirante de direccion, barra de acoplamiento y bieleta esten intactos.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Columna de direccion",
+            "description": "Comprobar el apriete de las juntas universales de la columna de direccion.",
+            "torques_nm": [
+              {
+                "label": "Juntas universales de columna",
+                "value_nm": 47
+              }
+            ]
+          },
+          {
+            "order": 4,
+            "title": "Barra de acoplamiento",
+            "description": "Comprobar el apriete de las abrazaderas de la barra de acoplamiento y de articulacion.",
+            "torques_nm": [
+              {
+                "label": "Abrazaderas barra de acoplamiento/articulacion",
+                "value_nm": 170
+              }
+            ]
+          },
+          {
+            "order": 5,
+            "title": "Mecanismo de servodireccion",
+            "description": "Verificar el par de las tuercas entre el soporte del mecanismo de servodireccion y el bastidor.",
+            "torques_nm": [
+              {
+                "label": "Mecanismo de servodireccion al bastidor",
+                "value_nm": 560
+              },
+              {
+                "label": "Soporte del mecanismo",
+                "value_nm": 210
+              }
+            ]
+          },
+          {
+            "order": 6,
+            "title": "Inspeccionar mangueras",
+            "description": "Inspeccionar visualmente los tubos flexibles hidraulicos por posible dano de componentes adyacentes del chasis.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Prueba de juego",
+            "description": "Con otra persona girando el volante, verificar ausencia de juego irregular en todo el tren de direccion.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Reporte de ruido, juego o nivel irregular: tipo de sintoma?",
+            "branches": [
+              {
+                "label": "Nivel de chasis irregular",
+                "next": "n2"
+              },
+              {
+                "label": "Juego en el volante",
+                "next": "n3"
+              },
+              {
+                "label": "Fuga visible en amortiguador",
+                "next": "n6"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Probar interruptores ELC en ambas direcciones",
+            "next": "n2a"
+          },
+          "n2a": {
+            "type": "decision",
+            "text": "Testigo enciende y retorna a nivel normal?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2b"
+              },
+              {
+                "label": "Si",
+                "next": "n2c"
+              }
+            ]
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Revisar cableado e interruptor de nivel",
+            "next": null
+          },
+          "n2c": {
+            "type": "action",
+            "text": "Sistema ELC correcto",
+            "next": null
+          },
+          "n3": {
+            "type": "action",
+            "text": "Girar volante con 2 tecnicos, verificar cada union",
+            "next": "n3a"
+          },
+          "n3a": {
+            "type": "decision",
+            "text": "Holgura en junta universal de columna?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n3b"
+              },
+              {
+                "label": "No",
+                "next": "n4"
+              }
+            ]
+          },
+          "n3b": {
+            "type": "action",
+            "text": "Verificar y reapretar a 47 Nm",
+            "next": null
+          },
+          "n4": {
+            "type": "decision",
+            "text": "Holgura en barra de acoplamiento o articulacion?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4a"
+              },
+              {
+                "label": "No",
+                "next": "n5"
+              }
+            ]
+          },
+          "n4a": {
+            "type": "action",
+            "text": "Reapretar abrazaderas a 170 Nm",
+            "next": null
+          },
+          "n5": {
+            "type": "action",
+            "text": "Verificar soporte y mecanismo de servodireccion: 560 y 210 Nm",
+            "next": null
+          },
+          "n6": {
+            "type": "decision",
+            "text": "Fuga confirmada en vastago?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n6a"
+              },
+              {
+                "label": "No",
+                "next": "n6b"
+              }
+            ]
+          },
+          "n6a": {
+            "type": "action",
+            "text": "Sustituir amortiguador",
+            "next": null
+          },
+          "n6b": {
+            "type": "action",
+            "text": "Inspeccionar casquillos de goma",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical orthographic diagram of a heavy-duty bus front steering linkage and air suspension: steering column with universal joints, drag link and tie rod clamps, power steering gear box on frame, air spring bellows with ELC level sensor, shock absorber in cross-section showing a fluid leak at the lower rod section. Torque values labeled in Nm at each joint. Clean blueprint line-art on white background, Spanish labels, workshop reference style, no photorealism."
+    },
+    {
+      "id": "zf_ecolife_transmission",
+      "name": "Caja de Cambios Automatica ZF Ecolife",
+      "category": "tren_motriz",
+      "applicable_brands": [
+        "VW/Scania Chasis Linea K"
+      ],
+      "source_documents": [
+        "Manual de Mantenimiento Vehiculos Series K"
+      ],
+      "functional_description": "La caja automatica ZF, familia Ecolife, requiere comprobacion de nivel en tres situaciones distintas: a temperatura de funcionamiento con el motor a ralenti, y tras circular al menos 30 minutos aumentando y disminuyendo de marcha para estabilizar la temperatura del aceite. El nivel incorrecto en cualquiera de estas condiciones debe corregirse de inmediato.",
+      "specs": [
+        {
+          "parameter": "Torque tapa del filtro",
+          "value": "23",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque tornillo central con O-ring",
+          "value": "25",
+          "unit": "Nm",
+          "notes": "lubricar O-ring con aceite de caja automatica",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque tapon de aceite con O-ring",
+          "value": "35",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque tapon de drenaje",
+          "value": "100",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque tapon de nivel",
+          "value": "100",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Nivel de aceite fuera de rango con motor a ralenti",
+          "root_cause": "Fuga, consumo anormal o llenado incorrecto en el ultimo servicio",
+          "verification_method": "Repetir medicion en las tres condiciones del manual",
+          "acceptance_criteria": "Nivel dentro del rango de la varilla o visor para la condicion medida",
+          "source": "manual"
+        },
+        {
+          "symptom": "Fuga de aceite en tapon o filtro",
+          "root_cause": "Junta torica degradada o par de apriete insuficiente",
+          "verification_method": "Inspeccion visual tras limpieza de la zona; reapriete y reinspeccion",
+          "acceptance_criteria": "Sin fuga visible tras 24 horas de operacion",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Cambios bruscos o que no se completan",
+          "root_cause": "Nivel de aceite incorrecto, filtro obstruido, o falla electronica de la unidad de control",
+          "verification_method": "Verificar nivel primero; si es correcto, escanear la unidad de control con herramienta OEM",
+          "acceptance_criteria": "Cambios suaves, sin codigo de falla activo",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Aceite oscuro o con olor a quemado en el cambio",
+          "root_cause": "Intervalo de cambio excedido o sobrecalentamiento sostenido",
+          "verification_method": "Inspeccion visual y de olor en cada servicio mayor",
+          "acceptance_criteria": "Reemplazar aceite y filtro segun intervalo del fabricante",
+          "source": "general_reference"
+        }
+      ],
+      "procedure": {
+        "title": "Cambio de filtro y aceite de la caja automatica",
+        "safety_warnings": [],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Acceso",
+            "description": "Desmontar la tapa del piso sobre la caja de cambios para acceder al conjunto.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Retirar tapa del filtro",
+            "description": "Retirar los tornillos que fijan la tapa del filtro.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Montar filtro nuevo",
+            "description": "Montar el filtro nuevo y colocar los tornillos que fijan la tapa.",
+            "torques_nm": [
+              {
+                "label": "Tornillos tapa del filtro",
+                "value_nm": 23
+              }
+            ]
+          },
+          {
+            "order": 4,
+            "title": "Tornillo central",
+            "description": "Lubricar el O-ring nuevo con aceite para caja automatica y montar el tornillo central de la tapa del filtro.",
+            "torques_nm": [
+              {
+                "label": "Tornillo central con O-ring",
+                "value_nm": 25
+              }
+            ]
+          },
+          {
+            "order": 5,
+            "title": "Tapon de aceite",
+            "description": "Lubricar el O-ring nuevo del tapon de aceite y montarlo en el carter.",
+            "torques_nm": [
+              {
+                "label": "Tapon de aceite con O-ring",
+                "value_nm": 35
+              }
+            ]
+          },
+          {
+            "order": 6,
+            "title": "Tapon de drenaje",
+            "description": "Colocar el tapon de drenaje.",
+            "torques_nm": [
+              {
+                "label": "Tapon de drenaje",
+                "value_nm": 100
+              }
+            ]
+          },
+          {
+            "order": 7,
+            "title": "Llenado",
+            "description": "Reponer el nivel de aceite a traves del orificio correspondiente, con el tipo de aceite especificado por ZF para la familia Ecolife.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Tapon de nivel",
+            "description": "Colocar de nuevo el tapon de nivel.",
+            "torques_nm": [
+              {
+                "label": "Tapon de nivel",
+                "value_nm": 100
+              }
+            ]
+          },
+          {
+            "order": 9,
+            "title": "Verificacion final",
+            "description": "Verificar el nivel en las tres condiciones descritas (ralenti, y tras 30 min de rodaje variando marchas) antes de cerrar el servicio.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Sospecha de falla en caja de cambios automatica: nivel de aceite correcto en las 3 condiciones?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2"
+              },
+              {
+                "label": "Si",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Corregir nivel: drenaje 100 Nm, llenado, tapon nivel 100 Nm",
+            "next": "n2a"
+          },
+          "n2a": {
+            "type": "action",
+            "text": "Repetir verificacion de nivel tras estabilizar temperatura",
+            "next": null
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Cambios suaves y completos?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n4"
+              },
+              {
+                "label": "Si",
+                "next": "n5"
+              }
+            ]
+          },
+          "n4": {
+            "type": "action",
+            "text": "Escanear unidad de control ZF con herramienta OEM",
+            "next": "n4a"
+          },
+          "n4a": {
+            "type": "decision",
+            "text": "Codigo de falla electronico presente?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4b"
+              },
+              {
+                "label": "No",
+                "next": "n4c"
+              }
+            ]
+          },
+          "n4b": {
+            "type": "action",
+            "text": "Diagnosticar segun codigo especifico ZF",
+            "next": null
+          },
+          "n4c": {
+            "type": "action",
+            "text": "Revisar filtro por obstruccion, cambiar si corresponde al intervalo",
+            "next": null
+          },
+          "n5": {
+            "type": "action",
+            "text": "Caja dentro de parametros normales",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical cutaway diagram of a ZF Ecolife automatic transmission for a heavy-duty bus, showing the oil pan, filter housing with O-ring seals, drain plug and level plug locations with torque callouts of 100 Nm, and the dipstick/level check port. Clean blueprint engineering style, white background, Spanish labels for Tapon de drenaje, Tapon de nivel, Filtro, workshop reference diagram, no photorealism."
+    },
+    {
+      "id": "scania_oc09_gas_engine",
+      "name": "Motor a Gas Natural Vehicular Scania OC 09 (Serie 101/102/106)",
+      "category": "tren_motriz",
+      "applicable_brands": [
+        "Scania"
+      ],
+      "source_documents": [
+        "Manual Motor a Gas Scania OC 09 101/102/106"
+      ],
+      "functional_description": "Motor ciclo Otto de encendido por chispa, derivado del bloque diesel de 9 litros de 2a generacion de Scania, adaptado para funcionar con metano, biogas o gas natural, o una mezcla de ambos. OC significa Otto, aire de Carga refrigerado; 09 es la cilindrada en litros; 101, 102 y 106 son codigos de certificacion asociados a distintas potencias. La presion de combustion es menor que en el diesel equivalente (80-140 bar frente a 180-200 bar), por lo que usa bujias y bobinas de encendido en vez de inyectores de alta presion. El gas se almacena a 200 bar; un regulador lo reduce a 7.3 bar antes del panel de combustible. Las bobinas de encendido entregan hasta aproximadamente 40000 voltios a la bujia. La ECU de potencia E104 analiza la combustion midiendo la corriente ionica en cada bujia, detectando fallas de encendido por cilindro, e informa por CAN a la ECU de gestion E103.",
+      "specs": [
+        {
+          "parameter": "Potencia OC 09 101",
+          "value": "280",
+          "unit": "hp",
+          "notes": "par maximo 1350 Nm a 1100-1400 rpm",
+          "source": "manual"
+        },
+        {
+          "parameter": "Potencia OC 09 106",
+          "value": "320",
+          "unit": "hp",
+          "notes": "par maximo 1500 Nm a 1100-1400 rpm",
+          "source": "manual"
+        },
+        {
+          "parameter": "Potencia OC 09 102",
+          "value": "340",
+          "unit": "hp",
+          "notes": "par maximo 1600 Nm a 1100-1400 rpm",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion de combustion (diesel equivalente)",
+          "value": "180-200",
+          "unit": "bar",
+          "notes": "para comparacion",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion de combustion (ciclo Otto a gas)",
+          "value": "80-140",
+          "unit": "bar",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion de almacenamiento de gas",
+          "value": "200",
+          "unit": "bar",
+          "notes": "en los tanques del vehiculo",
+          "source": "manual"
+        },
+        {
+          "parameter": "Presion de admision tras el regulador",
+          "value": "7.3",
+          "unit": "bar",
+          "notes": "antes del panel de combustible",
+          "source": "manual"
+        },
+        {
+          "parameter": "Tension de bobina al secundario",
+          "value": "~40000",
+          "unit": "V",
+          "notes": "a partir de 400V en el primario",
+          "source": "manual"
+        },
+        {
+          "parameter": "Tolerancia de altitud",
+          "value": "3000",
+          "unit": "msnm",
+          "notes": "maximo",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Perdida de potencia y codigo de sobrealimentacion",
+          "root_cause": "Falla de la valvula wastegate V107 o su bloque de valvulas proporcional",
+          "verification_method": "Escanear con herramienta OEM para confirmar codigo asociado a V107; verificar continuidad y accionamiento electrico del bloque",
+          "acceptance_criteria": "Sin codigo activo; presion de sobrealimentacion dentro de la curva esperada; verificar valor exacto en manual especifico",
+          "source": "manual"
+        },
+        {
+          "symptom": "Fallo de encendido detectado por cilindro",
+          "root_cause": "Bujia, bobina o cable de encendido defectuoso; detectado por analisis de corriente ionica de la ECU E104",
+          "verification_method": "Leer registro de fallos de encendido por cilindro via CAN; inspeccionar bujia, bobina y conexiones del cilindro senalado",
+          "acceptance_criteria": "Sin eventos de fallo de encendido sostenidos en ningun cilindro",
+          "source": "manual"
+        },
+        {
+          "symptom": "Motor no alcanza presion de gas esperada en la rampa",
+          "root_cause": "Regulador de presion descalibrado, filtro de gas obstruido, o fuga en el panel de combustible",
+          "verification_method": "Medir presion en el sensor T134 con herramienta de diagnostico; inspeccionar panel de combustible y conexiones",
+          "acceptance_criteria": "Presion de rampa estable en 7.3 bar aguas abajo del regulador",
+          "source": "manual"
+        },
+        {
+          "symptom": "Detonacion o picado detectado",
+          "root_cause": "Mezcla aire-combustible fuera de rango, avance de chispa excesivo, o calidad de gas fuera de especificacion",
+          "verification_method": "Revisar senal del sensor de picado; verificar calidad y presion de suministro de gas",
+          "acceptance_criteria": "Sin eventos de picado sostenidos; gas dentro de especificacion de poder calorifico y pureza; verificar norma de calidad aplicable",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Codigo de falla en sensor de posicion EGR (T124)",
+          "root_cause": "Sensor de posicion danado, o valvula EGR mecanicamente trabada por depositos",
+          "verification_method": "Leer valor en tiempo real de T124 con herramienta OEM mientras se comanda la valvula",
+          "acceptance_criteria": "Posicion reportada coincide con el comando enviado por la ECU",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Verificacion basica del sistema de encendido y combustible gaseoso",
+        "safety_warnings": [
+          "Con el motor apagado y frio, cerrar la valvula de corte manual y confirmar ausencia de presion residual antes de intervenir cualquier conexion de gas."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Bloqueo de gas (LOTO)",
+            "description": "Cerrar la valvula de corte manual en el panel de combustible y confirmar en el manometro de 0-400 bar que no queda presion residual en la linea de alta.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Inspeccion del panel",
+            "description": "Inspeccionar visualmente el panel de combustible: conector de llenado, electrovalvula (debe estar cerrada con el motor apagado), manometro de alta y regulador de presion.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Lectura de sensores de admision",
+            "description": "Con herramienta de diagnostico OEM conectada al bus CAN, leer en tiempo real T166/T168 (antes de la mariposa), T121/T122 (despues de la mariposa) y T134 (rampa de combustible) con el motor en marcha a temperatura de trabajo.",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Comparar con referencia",
+            "description": "Comparar las lecturas con los valores de referencia del sistema para el regimen y carga actuales.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Revisar eventos de encendido",
+            "description": "Revisar el registro de eventos de fallo de encendido por cilindro antes de desarmar nada.",
+            "torques_nm": []
+          },
+          {
+            "order": 6,
+            "title": "Probar actuadores",
+            "description": "Verificar el accionamiento electrico de V107 (wastegate) y V189 (valvula de vaciado) con el procedimiento de actuacion forzada de la herramienta de diagnostico.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Documentar",
+            "description": "Documentar todas las lecturas antes y despues de cualquier reemplazo de componente, para trazabilidad de flota.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Perdida de potencia o codigo de falla en motor a gas: relacionado con sobrealimentacion V107?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n2"
+              },
+              {
+                "label": "No",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Verificar bloque de valvulas proporcional y continuidad electrica de V107",
+            "next": "n2a"
+          },
+          "n2a": {
+            "type": "decision",
+            "text": "Responde a actuacion forzada en el escaner?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2b"
+              },
+              {
+                "label": "Si",
+                "next": "n2c"
+              }
+            ]
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Sustituir valvula V107 o bloque de valvulas",
+            "next": null
+          },
+          "n2c": {
+            "type": "action",
+            "text": "Revisar cableado y conector",
+            "next": null
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Fallo de encendido por cilindro registrado?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4"
+              },
+              {
+                "label": "No",
+                "next": "n5"
+              }
+            ]
+          },
+          "n4": {
+            "type": "action",
+            "text": "Inspeccionar bujia, bobina y cableado del cilindro senalado",
+            "next": null
+          },
+          "n5": {
+            "type": "decision",
+            "text": "Presion de rampa T134 baja respecto a referencia?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n6"
+              },
+              {
+                "label": "No",
+                "next": "n7"
+              }
+            ]
+          },
+          "n6": {
+            "type": "action",
+            "text": "Revisar regulador (200 a 7.3 bar), filtro de gas y fugas en panel de combustible",
+            "next": null
+          },
+          "n7": {
+            "type": "action",
+            "text": "Revisar sensor T124 EGR: posicion reportada coincide con comando?",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical schematic diagram of a natural gas heavy-duty engine fuel and ignition system: high-pressure gas tank at 200 bar, pressure regulator reducing to 7.3 bar, fuel rail with pressure and temperature sensor, throttle body with actuator, turbocharger with electrically controlled wastegate valve, ignition coil and spark plug detail. Clean technical schematic style, labeled pressure values in bar, Spanish labels for Tanque de gas, Regulador de presion, Rampa de combustible, Valvula wastegate, white background, workshop reference diagram, no photorealism."
+    },
+    {
+      "id": "dana_284hd_rear_axle",
+      "name": "Eje Trasero DANA 284 HD, Diferencial (Tren Motriz, VW)",
+      "category": "tren_motriz",
+      "applicable_brands": [
+        "VW/MAN"
+      ],
+      "source_documents": [
+        "Manual Eje Trasero DANA 284 HD"
+      ],
+      "functional_description": "Eje trasero hipoide de reduccion simple. El pinon transmite el giro del cardan a la corona, montada sobre la caja de satelites con los engranajes planetarios internos. La precision del engrane corona-pinon depende de tres ajustes interdependientes: la profundidad del pinon, la precarga de sus rodamientos conicos, y la precarga de los cojinetes de la corona junto con la holgura entre dientes. Calculo de la cuna de ajuste de profundidad del pinon: E = H - L - DM, donde H esta grabado en la carcasa del eje (4, 5 o 6, equivalentes a 182.22/182.24/182.27 mm), L es la altura total del rodamiento interno medida con un dispositivo (herramientas BR205 y BR815, tornillo a 27 Nm, mas indice de expansion de 0.127 mm), y DM es 5.648 pulgadas (143.46 mm) de referencia estandar, ajustable segun la marca grabada en la cabeza del pinon. Insumos criticos: Loctite 241 en los tornillos de fijacion de la corona, Dow Corning 780 como junta liquida en la cubierta central, grasa de litio EP en el borde del reten del pinon.",
+      "specs": [
+        {
+          "parameter": "Dimension H (grabacion 4)",
+          "value": "182.22",
+          "unit": "mm",
+          "notes": "7.174 pulgadas",
+          "source": "manual"
+        },
+        {
+          "parameter": "Dimension H (grabacion 5)",
+          "value": "182.24",
+          "unit": "mm",
+          "notes": "7.175 pulgadas",
+          "source": "manual"
+        },
+        {
+          "parameter": "Dimension H (grabacion 6)",
+          "value": "182.27",
+          "unit": "mm",
+          "notes": "7.176 pulgadas",
+          "source": "manual"
+        },
+        {
+          "parameter": "Dimension DM de referencia",
+          "value": "143.46",
+          "unit": "mm",
+          "notes": "5.648 pulgadas, ajustable segun marca en cabeza del pinon",
+          "source": "manual"
+        },
+        {
+          "parameter": "Indice de expansion para calculo de L",
+          "value": "0.127",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Torque tornillo del dispositivo de medicion (BR205+BR815)",
+          "value": "27",
+          "unit": "Nm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Precarga rodamientos del pinon, nuevos",
+          "value": "1.1-3.4",
+          "unit": "Nm",
+          "notes": "con llave de torque de arrastre",
+          "source": "manual"
+        },
+        {
+          "parameter": "Precarga rodamientos del pinon, usados",
+          "value": "0.6-1.7",
+          "unit": "Nm",
+          "notes": "con llave de torque de arrastre",
+          "source": "manual"
+        },
+        {
+          "parameter": "Precarga cojinetes de la corona, nuevos",
+          "value": "2-3",
+          "unit": "muescas (castillos)",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Precarga cojinetes de la corona, usados",
+          "value": "1-2",
+          "unit": "muescas (castillos)",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Holgura entre dientes (backlash)",
+          "value": "0.13-0.20",
+          "unit": "mm",
+          "notes": "medir en 3-4 puntos equidistantes",
+          "source": "manual"
+        },
+        {
+          "parameter": "Deformacion maxima de la corona",
+          "value": "0-0.20",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "Ruido constante del eje trasero a toda velocidad",
+          "root_cause": "Nivel bajo o contaminacion del aceite de diferencial",
+          "verification_method": "Revisar nivel y aspecto del aceite; buscar fugas en retenes y cubierta",
+          "acceptance_criteria": "Nivel correcto, aceite sin contaminacion ni metal en suspension",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Ruido que aumenta al soltar el acelerador",
+          "root_cause": "Holgura entre dientes (backlash) excesiva",
+          "verification_method": "Medir backlash en 3-4 puntos equidistantes con reloj comparador",
+          "acceptance_criteria": "0.13 a 0.20 mm",
+          "source": "manual"
+        },
+        {
+          "symptom": "Ruido o vibracion independiente del acelerador",
+          "root_cause": "Rodamiento de rueda o juego en semiejes",
+          "verification_method": "Inspeccionar rodamientos de rueda y ajuste de semiejes en los engranajes universales",
+          "acceptance_criteria": "Sin juego perceptible",
+          "source": "general_reference"
+        },
+        {
+          "symptom": "Marcas de contacto entre dientes descentradas",
+          "root_cause": "Profundidad de pinon incorrecta (E mal calculado)",
+          "verification_method": "Evaluar patron de contacto tras aplicar azul de Prusia o similar; recalcular E = H - L - DM",
+          "acceptance_criteria": "Patron de contacto centrado en el diente, conforme al patron de referencia del fabricante",
+          "source": "manual"
+        },
+        {
+          "symptom": "Rotacion del pinon con resistencia irregular tras montaje",
+          "root_cause": "Precarga de rodamientos del pinon fuera de rango",
+          "verification_method": "Verificar con llave de torque de arrastre",
+          "acceptance_criteria": "1.1 a 3.4 Nm (nuevos) o 0.6 a 1.7 Nm (usados)",
+          "source": "manual"
+        },
+        {
+          "symptom": "Deformacion de corona fuera de tolerancia",
+          "root_cause": "Corona mal asentada o tornillos sin el torque/Loctite correcto",
+          "verification_method": "Medir deformacion con reloj comparador en el montaje",
+          "acceptance_criteria": "0 a 0.20 mm",
+          "source": "manual"
+        },
+        {
+          "symptom": "Filtracion de aceite en la cubierta central tras un servicio",
+          "root_cause": "Junta liquida mal aplicada o ausente",
+          "verification_method": "Inspeccion visual del contorno de la cubierta",
+          "acceptance_criteria": "Sin fuga; reaplicar Dow Corning 780 si corresponde",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Desmontaje y montaje del eje trasero DANA 284 HD",
+        "safety_warnings": [
+          "Marcar siempre la posicion de corona y tapas de cojinetes antes de desmontar, para no mezclar lados de montaje."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Instalar en soporte",
+            "description": "Con la herramienta BR792, instalar el eje en el soporte de trabajo; retirar los ejes de los semiejes.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Medicion previa",
+            "description": "Aflojar tornillos y retirar la cubierta del conjunto central; medir holgura entre dientes en 3-4 puntos y la deformacion de la corona antes de desarmar mas.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Tapas de cojinetes",
+            "description": "Retirar tornillos y bloqueos de las tuercas de los cojinetes; marcar lados si no hay marca previa. Retirar tapas y tuercas de cojinete sin invertir el lado original.",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Retirar corona",
+            "description": "Retirar la corona con la caja de satelites y las cubiertas de los cojinetes; con una prensa, retirar los tornillos de fijacion de la corona.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Desarmar caja de satelites",
+            "description": "Marcar la posicion de la corona y retirarla de la caja de satelites; retirar el pin de bloqueo del eje interno y luego el eje interno con todos los engranajes.",
+            "torques_nm": []
+          },
+          {
+            "order": 6,
+            "title": "Retirar yugo y pinon",
+            "description": "Con BR236 inmovilizar el yugo y retirar su tuerca; con BR183 retirar el yugo; retirar el pinon y desechar el reten.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Retirar rodamientos del pinon",
+            "description": "Con BR237 retirar el rodamiento del pinon y la cuna de ajuste; con un tarugo largo, retirar la tapa del rodamiento interno de la carcasa.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Calcular E",
+            "description": "Determinar H (grabado en la carcasa), calcular L con el dispositivo BR205+BR815, leer DM en la cabeza del pinon, y calcular E = H - L - DM.",
+            "torques_nm": [
+              {
+                "label": "Tornillo dispositivo de medicion",
+                "value_nm": 27
+              }
+            ]
+          },
+          {
+            "order": 9,
+            "title": "Montar cubierta de rodamiento interno",
+            "description": "Con BR226 y BR224, instalar la cubierta del rodamiento interno del pinon en la carcasa.",
+            "torques_nm": []
+          },
+          {
+            "order": 10,
+            "title": "Montar cuna y cojinete sobre el pinon",
+            "description": "Con una prensa y BR242, montar la cuna de ajuste seleccionada y el cojinete interno sobre el pinon.",
+            "torques_nm": []
+          },
+          {
+            "order": 11,
+            "title": "Instalar pinon",
+            "description": "Colocar el pinon en la carcasa e instalar BR285; colocar el calce de ajuste de precarga de los rodamientos.",
+            "torques_nm": []
+          },
+          {
+            "order": 12,
+            "title": "Rodamiento exterior y verificacion de precarga",
+            "description": "Colocar el rodamiento exterior del pinon; con BR455 instalarlo y verificar rotacion. Instalar el yugo con BR455 (sin reten aun), instalar tuerca y con BR236 aplicar el torque para verificar precarga.",
+            "torques_nm": [
+              {
+                "label": "Precarga rodamientos del pinon, nuevos",
+                "value_nm": "1.1-3.4"
+              },
+              {
+                "label": "Precarga rodamientos del pinon, usados",
+                "value_nm": "0.6-1.7"
+              }
+            ]
+          },
+          {
+            "order": 13,
+            "title": "Montar reten definitivo",
+            "description": "Retirar el yugo con BR236 y BR183; aplicar grasa de litio EP en el borde del reten; con BR260 montar un reten nuevo; aplicar pasta de sellado tipo Permatex en el alojamiento del yugo; instalar el yugo definitivamente con BR455 y aplicar el torque final.",
+            "torques_nm": []
+          },
+          {
+            "order": 14,
+            "title": "Montar corona",
+            "description": "Instalar la corona y la caja de satelites con las cubiertas de cojinetes; montar las tuercas de los cojinetes sin volver a ensamblar la rosca usada; con una prensa, instalar y aplicar torque a los tornillos de fijacion de la corona.",
+            "torques_nm": [],
+            "notes": "Usar Loctite 241 en la rosca de los tornillos de fijacion de la corona"
+          },
+          {
+            "order": 15,
+            "title": "Ajuste final",
+            "description": "Montar tapas de cojinetes y aplicar torque final; ajustar precarga de cojinetes de la corona y holgura entre dientes; evaluar patron de contacto; ajustar semiejes en los engranajes universales; aplicar junta liquida Dow Corning 780 en la cubierta central e instalarla.",
+            "torques_nm": [
+              {
+                "label": "Precarga cojinetes corona, nuevos",
+                "value_nm": "2-3 muescas"
+              },
+              {
+                "label": "Precarga cojinetes corona, usados",
+                "value_nm": "1-2 muescas"
+              },
+              {
+                "label": "Holgura entre dientes",
+                "value_nm": "0.13-0.20mm"
+              }
+            ]
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Ruido o vibracion en eje trasero: constante a toda velocidad?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n2"
+              },
+              {
+                "label": "No, varia con velocidad",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Revisar nivel y estado del aceite de diferencial",
+            "next": "n2a"
+          },
+          "n2a": {
+            "type": "decision",
+            "text": "Nivel bajo o aceite contaminado?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n2b"
+              },
+              {
+                "label": "No",
+                "next": "n3a"
+              }
+            ]
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Cambiar aceite, verificar fugas, reinspeccionar",
+            "next": null
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Aumenta al soltar el acelerador?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n3a"
+              },
+              {
+                "label": "No cambia",
+                "next": "n5"
+              }
+            ]
+          },
+          "n3a": {
+            "type": "action",
+            "text": "Sospechar backlash excesivo: medir en 3-4 puntos equidistantes",
+            "next": "n4"
+          },
+          "n4": {
+            "type": "decision",
+            "text": "Fuera de 0.13 a 0.20mm?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4a"
+              },
+              {
+                "label": "No",
+                "next": "n4b"
+              }
+            ]
+          },
+          "n4a": {
+            "type": "action",
+            "text": "Desmontar y reajustar calces: recalcular E = H - L - DM",
+            "next": null
+          },
+          "n4b": {
+            "type": "action",
+            "text": "Evaluar patron de contacto entre dientes y precarga del pinon",
+            "next": null
+          },
+          "n5": {
+            "type": "action",
+            "text": "Sospechar rodamiento de rueda o juego en semiejes: inspeccionar",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Precision technical cutaway illustration, cross-section, of a Dana 284 HD hypoid rear axle differential assembly: pinion gear with inner and outer tapered roller bearings and adjustment shim, ring gear bolted to the spider gear carrier, carrier bearing caps with adjustment nuts, and the yoke with seal. Annotated with the formula E = H - L - DM and dimension arrows for H, L, DM, E. Clean mechanical blueprint style, white background, Spanish labels for Pinon, Corona, Caja de satelites, Rodamiento, Reten, workshop reference diagram, no photorealism, precise engineering proportions."
+    },
+    {
+      "id": "thoreb_multiplex_electrical",
+      "name": "Sistema Electrico Multiplexado Thoreb (Carroceria Busscar)",
+      "category": "electrico",
+      "applicable_brands": [
+        "VW",
+        "Scania",
+        "aplicable a cualquier chasis con carroceria Busscar/Thoreb"
+      ],
+      "source_documents": [
+        "Manual de Funcionamiento Sistema Multiplex Thoreb, MN-SG-02, Busscar de Colombia"
+      ],
+      "functional_description": "El sistema Elsy de Thoreb distribuye la logica de carroceria entre modulos de potencia (K30, K17, K10) y paneles de mando (19, 15, 10 teclas) que se comunican por bus CAN J1939. Todos los modulos comparten alimentacion 9 a 35 VDC, consumo de reposo de aproximadamente 10 mA a 24V, y temperatura de operacion de -40 a 70 grados C. El conector P1 de K30/K17 entrega dos alimentaciones positivas (B1, A1) y una negativa (A2). La identificacion del modulo 1 (K30) se hace con un jumper entre B13 y B15; el cierre de red se indica con jumpers entre C3-C4 y C5-C6 en el ultimo modulo. La comunicacion usa par trenzado de 20 AWG en el conector violeta de 15 pines: B1 = CAN H, B2 = CAN Low en el modulo; Pin 1 = CAN H, Pin 2 = CAN Low en el panel.",
+      "specs": [
+        {
+          "parameter": "Entradas modulo K30",
+          "value": "20",
+          "unit": "pines",
+          "notes": "hasta 90A, salidas: 18x5A, 1x20A, 1x10A PWM, 4x5A PWM, 3x5A PWM(H), 3x5A negativas",
+          "source": "manual"
+        },
+        {
+          "parameter": "Entradas modulo K17",
+          "value": "12",
+          "unit": "pines",
+          "notes": "hasta 60A, salidas: 8x5A, 1x20A, 1x10A PWM, 4x5A PWM, 3x5A PWM(H)",
+          "source": "manual"
+        },
+        {
+          "parameter": "Entradas modulo K10",
+          "value": "10",
+          "unit": "pines",
+          "notes": "hasta 30A, salidas: 2x5A, 5x5A PWM, 3x5A PWM(H)",
+          "source": "manual"
+        },
+        {
+          "parameter": "Alimentacion de modulos y paneles",
+          "value": "9-35",
+          "unit": "VDC",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Calibre maximo de cable de potencia",
+          "value": "8",
+          "unit": "AWG",
+          "notes": "conector P1",
+          "source": "manual"
+        },
+        {
+          "parameter": "Calibre de par trenzado CAN",
+          "value": "20",
+          "unit": "AWG",
+          "notes": "conector violeta de 15 pines",
+          "source": "manual"
+        },
+        {
+          "parameter": "Pines potencia Panel 19",
+          "value": "B:13 (+), B:10 (-)",
+          "unit": "",
+          "notes": "K10 anade B:7 (+)",
+          "source": "manual"
+        },
+        {
+          "parameter": "Temperatura de operacion",
+          "value": "-40 a 70",
+          "unit": "C",
+          "notes": "modulos y paneles",
+          "source": "manual"
+        },
+        {
+          "parameter": "Resistencia a caida",
+          "value": "2",
+          "unit": "m",
+          "notes": "modulos probados sin dano interno; paneles mas sensibles",
+          "source": "manual"
+        },
+        {
+          "parameter": "Garantia del sistema",
+          "value": "1",
+          "unit": "año",
+          "notes": "desde la instalacion",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "No hay salida con el modulo conectado",
+          "root_cause": "Modulo sin alimentacion o sin programacion",
+          "verification_method": "Comprobar positiva en los 2 pines indicados y negativo en posicion correcta; observar LED de estado",
+          "acceptance_criteria": "LED parpadeando = normal; LED fijo = sin programar, reprogramar; LED apagado = modulo defectuoso, sustituir",
+          "source": "manual"
+        },
+        {
+          "symptom": "Salida aparentemente defectuosa",
+          "root_cause": "Error en posicion de terminal, condicion de activacion no cumplida, o cortocircuito",
+          "verification_method": "Comprobar pin de salida en la lista de nodos y el cable conectado; verificar condiciones de activacion (ej. senal VCC15); retirar pin, reiniciar modulo y probar con probador",
+          "acceptance_criteria": "Si funciona en banco, hay cortocircuito en el arnes o la carga; revisar cableado",
+          "source": "manual"
+        },
+        {
+          "symptom": "Entrada aparentemente defectuosa",
+          "root_cause": "Error en posicion de terminal o en la senal",
+          "verification_method": "Verificar el pin en la tabla de cargas; confirmar con probador que la senal llega al modulo",
+          "acceptance_criteria": "Senal presente y en el pin correcto",
+          "source": "manual"
+        },
+        {
+          "symptom": "Pantalla del panel encendida sin texto, teclas no responden",
+          "root_cause": "Panel probablemente sin programacion",
+          "verification_method": "Solicitar reprogramacion del panel, o sustituirlo temporalmente para aislar el problema",
+          "acceptance_criteria": "Panel reprogramado responde con normalidad",
+          "source": "manual"
+        },
+        {
+          "symptom": "Pantalla y teclas funcionan, pero las cargas del autobus no ligan",
+          "root_cause": "Error en cables de comunicacion CAN o modulo sin alimentacion",
+          "verification_method": "Comprobar alimentacion del modulo y la conexion de los cables CAN H / CAN Low",
+          "acceptance_criteria": "Comunicacion restablecida y cargas responden",
+          "source": "manual"
+        },
+        {
+          "symptom": "Pantalla con iluminacion apagada y teclas sin respuesta",
+          "root_cause": "Falta de alimentacion o panel defectuoso",
+          "verification_method": "Comprobar alimentacion: cable rojo positivo, cable negro negativo",
+          "acceptance_criteria": "Si la alimentacion es correcta, sustituir el panel",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Puesta en servicio de un modulo nuevo en la red",
+        "safety_warnings": [
+          "Desconectar la alimentacion de los modulos y paneles antes de soldar en la estructura del vehiculo.",
+          "Orientar siempre los conectores hacia abajo al instalar un modulo."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Orientacion",
+            "description": "Instalar el modulo con los conectores orientados hacia abajo para minimizar el riesgo de entrada de agua.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Conexion de potencia",
+            "description": "Conectar la potencia en el conector P1: positivas en B1 y A1, negativa en A2, respetando el calibre maximo de 8 AWG.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Conexion CAN",
+            "description": "Conectar el par trenzado de comunicacion CAN de calibre 20 AWG al conector violeta de 15 pines: B1 a CAN H, B2 a CAN Low del modulo, uniendolo al mismo par que usa el panel.",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Identificacion (si aplica)",
+            "description": "Si el modulo es el primero de la red (K30, modulo 1), instalar el jumper de identificacion entre los conectores B13 y B15.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Cierre de red (si aplica)",
+            "description": "Si el modulo es el ultimo fisico de la red, instalar los dos jumpers de cierre: entre C3-C4 y entre C5-C6.",
+            "torques_nm": []
+          },
+          {
+            "order": 6,
+            "title": "Energizar y verificar LED",
+            "description": "Energizar el sistema y confirmar que el LED de estado del modulo parpadea de forma regular.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Verificar tabla de cargas",
+            "description": "Desde el panel, acceder al menu de pines para verificar la tabla de cargas, confirmando voltajes actuales en cada pin del modulo recien instalado.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Prueba funcional",
+            "description": "Probar cada salida comandada desde el panel y confirmar la activacion fisica de la carga correspondiente antes de cerrar el servicio.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Carga o salida del sistema multiplex no responde: panel enciende y muestra texto?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2"
+              },
+              {
+                "label": "Si, pero sin texto",
+                "next": "n2d"
+              },
+              {
+                "label": "Si, con texto, teclas no responden",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "type": "action",
+            "text": "Verificar alimentacion 9-35VDC: cable rojo positivo, negro negativo",
+            "next": "n2a"
+          },
+          "n2d": {
+            "type": "action",
+            "text": "Panel sin programacion: reprogramar",
+            "next": null
+          },
+          "n2a": {
+            "type": "decision",
+            "text": "Hay tension en el conector?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2b"
+              },
+              {
+                "label": "Si",
+                "next": "n2c"
+              }
+            ]
+          },
+          "n2b": {
+            "type": "action",
+            "text": "Revisar fusible y alimentacion general",
+            "next": null
+          },
+          "n2c": {
+            "type": "action",
+            "text": "Panel probablemente defectuoso: sustituir temporalmente",
+            "next": null
+          },
+          "n3": {
+            "type": "action",
+            "text": "Verificar cables de comunicacion CAN H / CAN Low",
+            "next": "n3a"
+          },
+          "n3a": {
+            "type": "decision",
+            "text": "LED de estado del modulo parpadea?",
+            "branches": [
+              {
+                "label": "No, fijo encendido",
+                "next": "n3b"
+              },
+              {
+                "label": "No, apagado",
+                "next": "n3c"
+              },
+              {
+                "label": "Si, parpadea normal",
+                "next": "n4"
+              }
+            ]
+          },
+          "n3b": {
+            "type": "action",
+            "text": "Modulo sin programacion: reprogramar",
+            "next": null
+          },
+          "n3c": {
+            "type": "action",
+            "text": "Modulo defectuoso: solicitar sustitucion",
+            "next": null
+          },
+          "n4": {
+            "type": "action",
+            "text": "Revisar pin de salida en la tabla de cargas",
+            "next": "n4a"
+          },
+          "n4a": {
+            "type": "decision",
+            "text": "Condiciones de activacion cumplidas, ej VCC15?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n4b"
+              },
+              {
+                "label": "Si",
+                "next": "n4c"
+              }
+            ]
+          },
+          "n4b": {
+            "type": "action",
+            "text": "Verificar que la senal de activacion llega al modulo",
+            "next": null
+          },
+          "n4c": {
+            "type": "action",
+            "text": "Retirar pin, reiniciar modulo, probar con multimetro",
+            "next": "n4d"
+          },
+          "n4d": {
+            "type": "decision",
+            "text": "Funciona en banco?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4e"
+              },
+              {
+                "label": "No",
+                "next": "n4f"
+              }
+            ]
+          },
+          "n4e": {
+            "type": "action",
+            "text": "Cortocircuito en arnes o carga: inspeccionar cableado",
+            "next": null
+          },
+          "n4f": {
+            "type": "action",
+            "text": "Sustituir modulo",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical wiring pinout diagram for a multiplex bus electrical control module: a rectangular control unit with labeled connector pins B1 and A1 positive power, A2 negative, a 15-pin violet CAN communication connector with CAN High and CAN Low wires in blue, and identification jumpers between labeled terminals. Clean electrical schematic style, white background, Spanish labels for Alimentacion, Comunicacion CAN, Jumper de identificacion, workshop wiring reference diagram, no photorealism, high clarity."
+    },
+    {
+      "id": "ortobras_wheelchair_lift",
+      "name": "Plataforma Elevadora de Sillas de Ruedas Ortobras, Serie 1100",
+      "category": "accesibilidad",
+      "applicable_brands": [
+        "Equipo instalado en carrocerias sobre chasis VW y Scania"
+      ],
+      "source_documents": [
+        "Manual Plataforma Elevadora Ortobras Serie 1100 (version original y V5)"
+      ],
+      "functional_description": "Controles sin llave fisica, operacion por control remoto. Capacidad maxima 400 kg, carga regulada 250 kg, velocidad 6 m por minuto en ambos sentidos, peso aproximado 200-210 kg segun version. Plataforma de 800 mm de ancho util por 1000 mm de largo util. La subida se realiza con unidad electro-hidraulica de 12 o 24 VDC; la bajada es por gravedad, controlada por una valvula electro-asistida. Existe version automatica (ciclo completo con 3 botones: Arriba, Cerrar Rampa, Abajo) y semiautomatica (solo Arriba/Abajo, apertura y cierre manual de la mitad movil).",
+      "specs": [
+        {
+          "parameter": "Capacidad maxima",
+          "value": "400",
+          "unit": "kg",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Carga regulada",
+          "value": "250",
+          "unit": "kg",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Velocidad",
+          "value": "6",
+          "unit": "m/min",
+          "notes": "ambos sentidos",
+          "source": "manual"
+        },
+        {
+          "parameter": "Peso del equipo",
+          "value": "200-210",
+          "unit": "kg",
+          "notes": "segun version (original/V5)",
+          "source": "manual"
+        },
+        {
+          "parameter": "Ancho util de plataforma",
+          "value": "800",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Largo util de plataforma",
+          "value": "1000",
+          "unit": "mm",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Alimentacion unidad hidraulica",
+          "value": "12/24",
+          "unit": "VDC",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Intervalo de mantenimiento preventivo mayor",
+          "value": "500",
+          "unit": "ciclos",
+          "notes": "con base en ~20 ciclos/dia de uso",
+          "source": "manual"
+        },
+        {
+          "parameter": "Intervalo de inspeccion de correas de traccion",
+          "value": "750",
+          "unit": "ciclos",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Intervalo de cambio de aceite hidraulico",
+          "value": "12",
+          "unit": "meses",
+          "notes": "",
+          "source": "manual"
+        },
+        {
+          "parameter": "Cambio de filtro de succion, inicial",
+          "value": "6",
+          "unit": "meses",
+          "notes": "luego cada 12 meses",
+          "source": "manual"
+        },
+        {
+          "parameter": "Garantia del equipo",
+          "value": "1",
+          "unit": "año",
+          "notes": "desde la fecha de compra",
+          "source": "manual"
+        },
+        {
+          "parameter": "Garantia de componentes electricos de desgaste normal",
+          "value": "90",
+          "unit": "dias",
+          "notes": "motor, rele, interruptores de fin de curso, pulsadores, fusible",
+          "source": "manual"
+        }
+      ],
+      "fault_matrix": [
+        {
+          "symptom": "La plataforma no sube",
+          "root_cause": "Sin energia al motor, motor no gira, o sin aceite en el tanque",
+          "verification_method": "Verificar si llega energia al motor; si el motor gira; si hay aceite en el tanque",
+          "acceptance_criteria": "Verificar cables y fusibles; enviar a asistencia tecnica; completar el nivel de aceite",
+          "source": "manual"
+        },
+        {
+          "symptom": "La plataforma no baja",
+          "root_cause": "Bobina S1 sin senal, o falla de valvula",
+          "verification_method": "Verificar si enciende el LED de la bobina S1; probar accionando la valvula manualmente",
+          "acceptance_criteria": "Verificar cables; sustituir la bobina; verificar obstrucciones mecanicas",
+          "source": "manual"
+        },
+        {
+          "symptom": "No se mantiene sola en la posicion superior",
+          "root_cause": "Perdidas externas de aceite en conexiones",
+          "verification_method": "Inspeccion visual de conexiones hidraulicas",
+          "acceptance_criteria": "Apretar las conexiones; enviar a asistencia tecnica si no hay perdidas visibles",
+          "source": "manual"
+        },
+        {
+          "symptom": "La plataforma no cierra",
+          "root_cause": "Bobina S2 sin senal, o falla de valvula",
+          "verification_method": "Verificar si enciende el LED de la bobina S2; probar accionando la valvula manualmente",
+          "acceptance_criteria": "Verificar cables; sustituir la bobina; verificar obstrucciones mecanicas",
+          "source": "manual"
+        },
+        {
+          "symptom": "La plataforma no abre",
+          "root_cause": "Obstrucciones mecanicas",
+          "verification_method": "Inspeccion visual del recorrido de apertura",
+          "acceptance_criteria": "Retirar las obstrucciones",
+          "source": "manual"
+        }
+      ],
+      "procedure": {
+        "title": "Mantenimiento preventivo (cada 500 ciclos)",
+        "safety_warnings": [
+          "Descargar la plataforma a su nivel mas bajo antes de intervenir mangueras o valvulas hidraulicas, para que la presion en el circuito sea cero."
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "title": "Limpieza general",
+            "description": "Limpieza general de la plataforma con detergente y agua bajo presion.",
+            "torques_nm": []
+          },
+          {
+            "order": 2,
+            "title": "Lubricacion semanal",
+            "description": "Lubricar las graseras del paso una vez por semana.",
+            "torques_nm": []
+          },
+          {
+            "order": 3,
+            "title": "Lubricacion del eje de activacion",
+            "description": "Abrir la tapa de cierre; lavar y lubricar la grasera que activa la via de acceso del eje de la unidad, cada 30 dias (500 ciclos).",
+            "torques_nm": []
+          },
+          {
+            "order": 4,
+            "title": "Verificar gatillo",
+            "description": "Verificar el funcionamiento del gatillo que impulsa el paso.",
+            "torques_nm": []
+          },
+          {
+            "order": 5,
+            "title": "Verificar bloqueo de paso",
+            "description": "Verificar el funcionamiento del bloqueo de paso.",
+            "torques_nm": []
+          },
+          {
+            "order": 6,
+            "title": "Nivel de aceite",
+            "description": "Revisar el nivel de aceite hidraulico: debe estar en el nivel maximo de la varilla, con la plataforma en su posicion mas baja.",
+            "torques_nm": []
+          },
+          {
+            "order": 7,
+            "title": "Rampa de bloqueo",
+            "description": "Verificar el funcionamiento de la rampa de bloqueo de sillas de ruedas.",
+            "torques_nm": []
+          },
+          {
+            "order": 8,
+            "title": "Cambio de aceite",
+            "description": "Cambiar el aceite hidraulico cada 12 meses.",
+            "torques_nm": []
+          },
+          {
+            "order": 9,
+            "title": "Cambio de filtro",
+            "description": "Cambiar el filtro de succion a los 6 meses inicialmente, y luego cada 12 meses.",
+            "torques_nm": []
+          },
+          {
+            "order": 10,
+            "title": "Reapriete del sistema",
+            "description": "Cada 500 ciclos, reapretar todo el sistema hidraulico: mangueras, valvulas, bomba de mano y conexiones.",
+            "torques_nm": []
+          },
+          {
+            "order": 11,
+            "title": "Inspeccion de correas",
+            "description": "Inspeccionar los cinturones de traccion cada 750 ciclos; sustituir el conjunto completo (tensor, cinta y chavetas) si hay desgaste en bordes laterales, hilo deshilachado, interrupcion de la cinta, o desgaste en tensores.",
+            "torques_nm": []
+          },
+          {
+            "order": 12,
+            "title": "Lubricacion general",
+            "description": "Lubricar con grasa de jabon de calcio todos los componentes de la plataforma movil, en ambas versiones.",
+            "torques_nm": []
+          }
+        ]
+      },
+      "diagnostic_tree": {
+        "start_node": "n1",
+        "nodes": {
+          "n1": {
+            "type": "decision",
+            "text": "Falla reportada en plataforma elevadora: tipo de falla?",
+            "branches": [
+              {
+                "label": "No sube",
+                "next": "n2"
+              },
+              {
+                "label": "No baja",
+                "next": "n3"
+              },
+              {
+                "label": "No cierra",
+                "next": "n4"
+              },
+              {
+                "label": "No abre",
+                "next": "n5a"
+              },
+              {
+                "label": "No se mantiene arriba",
+                "next": "n6"
+              }
+            ]
+          },
+          "n2": {
+            "type": "decision",
+            "text": "Llega energia al motor?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2a"
+              },
+              {
+                "label": "Si",
+                "next": "n2b"
+              }
+            ]
+          },
+          "n2a": {
+            "type": "action",
+            "text": "Revisar cables y fusibles",
+            "next": null
+          },
+          "n2b": {
+            "type": "decision",
+            "text": "Motor gira?",
+            "branches": [
+              {
+                "label": "No",
+                "next": "n2c"
+              },
+              {
+                "label": "Si",
+                "next": "n2d"
+              }
+            ]
+          },
+          "n2c": {
+            "type": "action",
+            "text": "Enviar a asistencia tecnica",
+            "next": null
+          },
+          "n2d": {
+            "type": "action",
+            "text": "Completar nivel de aceite hidraulico",
+            "next": null
+          },
+          "n3": {
+            "type": "decision",
+            "text": "Baja accionando valvula manual?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n3a"
+              },
+              {
+                "label": "No",
+                "next": "n3b"
+              }
+            ]
+          },
+          "n3a": {
+            "type": "action",
+            "text": "Sustituir bobina S1, revisar cables",
+            "next": null
+          },
+          "n3b": {
+            "type": "action",
+            "text": "Buscar obstruccion mecanica en el recorrido",
+            "next": null
+          },
+          "n4": {
+            "type": "decision",
+            "text": "Cierra accionando valvula manual?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n4a"
+              },
+              {
+                "label": "No",
+                "next": "n4b"
+              }
+            ]
+          },
+          "n4a": {
+            "type": "action",
+            "text": "Sustituir bobina S2, revisar cables",
+            "next": null
+          },
+          "n4b": {
+            "type": "action",
+            "text": "Buscar obstruccion mecanica",
+            "next": null
+          },
+          "n5a": {
+            "type": "action",
+            "text": "Buscar obstrucciones mecanicas",
+            "next": null
+          },
+          "n6": {
+            "type": "decision",
+            "text": "Hay fuga visible?",
+            "branches": [
+              {
+                "label": "Si",
+                "next": "n6a"
+              },
+              {
+                "label": "No",
+                "next": "n6b"
+              }
+            ]
+          },
+          "n6a": {
+            "type": "action",
+            "text": "Apretar conexiones hidraulicas",
+            "next": null
+          },
+          "n6b": {
+            "type": "action",
+            "text": "Enviar a asistencia tecnica: posible valvula de retencion",
+            "next": null
+          }
+        }
+      },
+      "image_prompt": "Technical exploded diagram of a wheelchair accessibility lift platform for a city bus doorway: hydraulic power unit with manual pump lever, platform deck with safety ramp, guide rails, and control button panel labeled Arriba, Cerrar Rampa, Abajo. Clean mechanical blueprint style, white background, Spanish labels for Unidad hidraulica, Bomba manual, Rampa de seguridad, Botonera de control, workshop reference diagram, no photorealism, precise engineering proportions."
+    }
+  ],
+  "coverage_notes": {
+    "covered_in_detail": [
+      "euro6_aftertreatment",
+      "chassis_k_brakes_wheels",
+      "chassis_k_suspension_steering",
+      "zf_ecolife_transmission",
+      "scania_oc09_gas_engine",
+      "dana_284hd_rear_axle",
+      "thoreb_multiplex_electrical",
+      "ortobras_wheelchair_lift"
+    ],
+    "documentation_gaps": [
+      "Codigos de falla especificos de la unidad ABS/EBS (mas alla de la prueba funcional en frenometro ya cubierta)",
+      "Climatizacion / HVAC",
+      "Sistema de combustible diesel de alta presion en las variantes diesel del chasis K",
+      "Catalogo completo de piezas de repuesto con codigos y precios"
+    ],
+    "reliability_recommendations": [
+      "Priorizar en el plan de mantenimiento preventivo los items con intervalo explicito de los manuales: correas de traccion de la plataforma Ortobras cada 750 ciclos, reapriete de su sistema hidraulico cada 500 ciclos, verificacion de nivel de la caja ZF en las tres condiciones descritas, y vigilancia activa de indicadores DPF/UREA para evitar regeneracion forzada en taller.",
+      "Para reducir MTTR, mantener en stock de flota: recipientes desecantes APS, pastillas y discos de freno segun consumo historico, kit de retenes y cunas de ajuste para el eje DANA 284 HD, modulos K10/K17/K30 y paneles Thoreb de repuesto, y bobinas S1/S2 para la plataforma Ortobras.",
+      "Para sostener MTBF, instaurar un checklist de puesta en funcionamiento como parte de la inspeccion diaria de salida de flota, no solo como protocolo de entrega inicial."
+    ]
+  }
+}
