@@ -175,7 +175,12 @@ def list_maintenance(
     total_pages = (total + page_size - 1) // page_size
     
     # Aplicar paginación y ejecutar query
-    items = query.offset(skip).limit(page_size).all()
+    items = (
+    query.order_by(MaintenanceDB.created_at.desc(), MaintenanceDB.id)
+    .offset(skip)
+    .limit(page_size)
+    .all()
+)
     
     # Construir respuesta
     response = PaginatedResponse(

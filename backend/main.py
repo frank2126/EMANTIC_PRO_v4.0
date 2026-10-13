@@ -46,6 +46,8 @@ from routes.diagnostico import router as diagnostico_router
 
 from routes.kilometraje import router as kilometraje_router
 
+from routes.documents import router as documents_router
+
 
 # Error handling
 
@@ -247,6 +249,14 @@ logger.info("✅ Rutas registradas: auth, users, maintenance, reportes, excel, m
 # ── REGISTRAR MANEJADORES DE EXCEPCIONES ────────────────
 
 # Debe ser después de incluir todos los routers
+
+
+from fastapi.staticfiles import StaticFiles
+import os
+
+os.makedirs("uploads", exist_ok=True)
+app.include_router(documents_router)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 setup_exception_handlers(app)
 
