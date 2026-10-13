@@ -371,3 +371,41 @@ class RepuestoDB(Base):
         Index('idx_pieza_descripcion', 'pieza', 'descripcion'),
         Index('idx_clase_nivel', 'clase', 'nivel_sistema'),
     )
+
+# ═══════════════════════════════════════════════════════════
+#  PEGAR AL FINAL DE database.py  (usa los imports que ya tiene)
+#  init_db() ya hace Base.metadata.create_all → crea las 3 tablas solas al reiniciar.
+# ═══════════════════════════════════════════════════════════
+
+class LecturaKmDB(Base):
+    """Una fila por móvil y día (viene de la exportación de telemetría)."""
+    __tablename__ = "lecturas_km"
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    movil     = Column(String(20), nullable=False, index=True)
+    fecha     = Column(String(10), nullable=False, index=True)   # AAAA-MM-DD
+    recorrido = Column(Float, default=0)
+    odo_min   = Column(Float, default=0)
+    odo_max   = Column(Float, default=0)                         # Mín = Máx = 0 → sin dato
+    __table_args__ = (UniqueConstraint('movil', 'fecha', name='uq_lectura_movil_fecha'),)
+
+class MovilBaseDB(Base):
+    """Odómetro de cada móvil la primera vez que se cargó: lo anterior se da por intervenido."""
+    __tablename__ = "moviles_base"
+    movil      = Column(String(20), primary_key=True)
+    odo_base   = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class ProgramacionMovilDB(Base):
+    """Un hito (p. ej. 330000 km) por móvil: Programado → Intervenido."""
+    __tablename__ = "programacion_moviles"
+    id                 = Column(Integer, primary_key=True, autoincrement=True)
+    movil              = Column(String(20), nullable=False, index=True)
+    hito_km            = Column(Integer, nullable=False)
+    estado             = Column(String(20), default="Programado")
+    fecha_programada   = Column(String(10), default="")
+    fecha_intervencion = Column(String(10), default="")
+    km_intervencion    = Column(Integer, default=0)
+    observacion        = Column(String(300), default="")
+    updated_by         = Column(String(100), default="")
+    updated_at         = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    __table_args__ = (UniqueConstraint('movil', 'hito_km', name='uq_prog_movil_hito'),)

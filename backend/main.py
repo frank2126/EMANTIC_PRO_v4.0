@@ -44,6 +44,8 @@ from routes.app_config import router as app_config_router
 
 from routes.diagnostico import router as diagnostico_router
 
+from routes.kilometraje import router as kilometraje_router
+
 
 # Error handling
 
@@ -235,6 +237,8 @@ app.include_router(health_router)
 app.include_router(app_config_router)
 
 app.include_router(diagnostico_router)
+
+app.include_router(kilometraje_router)
 
 app.include_router(datos_router)  # /api/dpv, /api/ico, /api/disponibilidad, /api/dpv-mensual, /api/cargas
  

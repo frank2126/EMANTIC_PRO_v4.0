@@ -21,6 +21,7 @@
 
     <div class="page-header page-header--slim">
       <div class="header-actions">
+        <KmUploadButtons @done="onKmDone" />
         <button class="btn-secondary" @click="showForm = !showForm">+ Nueva Orden</button>
       </div>
     </div>
@@ -53,9 +54,10 @@
       <button class="tab" :class="{active:tab==='preventivo'}" @click="tab='preventivo'">Mantenimiento Preventivo</button>
       <button class="tab" :class="{active:tab==='correctivo'}" @click="tab='correctivo'">Mantenimiento Correctivo</button>
       <button class="tab" :class="{active:tab==='historial'}"  @click="tab='historial'">Historial Completo</button>
+      <button class="tab" :class="{active:tab==='programacion'}" @click="tab='programacion'">Programación de Móviles</button>
     </div>
 
-    <div class="card table-card">
+    <div v-if="tab!=='programacion'" class="card table-card">
       <div class="table-top">
         <div>
           <h3 class="table-title">Calendario — {{ currentMonth }}</h3>
@@ -95,6 +97,7 @@
         </table>
       </div>
     </div>
+    <ProgramacionMoviles v-else :version="kmVersion" />
 
     <!-- Modal detalle -->
     <div v-if="selected" class="modal-backdrop" @click="selected=null">
@@ -121,11 +124,15 @@ import maintHeroImg from '../assets/mantenimiento.png'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuth } from '../auth.js'
+import KmUploadButtons from '../components/KmUploadButtons.vue'
+import ProgramacionMoviles from '../components/ProgramacionMoviles.vue'
 const { isAdmin } = useAuth()
 
 const items = ref([]), loading = ref(true), saving = ref(false)
 const showForm = ref(false), formErr = ref(''), selected = ref(null)
 const tab = ref('preventivo')
+const kmVersion = ref(0)
+const onKmDone = () => { kmVersion.value++; tab.value = 'programacion' }
 const form = ref({ unidad:'', tipo:'', km_actual:0, km_servicio:0, fecha:'', estado:'Programado' })
 
 const currentMonth = new Date().toLocaleDateString('es-CO', { month:'long', year:'numeric' })
@@ -150,7 +157,14 @@ const heroStats = computed(() => {
 const stClass = s => ({'Programado':'badge-info','Próximo':'badge-warning','Urgente':'badge-danger','Completado':'badge-success'}[s]||'badge-gray')
 const kmClass = item => { const d=item.km_servicio-item.km_actual; return d<2000?'km-red':d<5000?'km-orange':'km-gray' }
 
-const load = async () => { loading.value=true; try { items.value=(await axios.get('/api/maintenance')).data } catch {} finally { loading.value=false } }
+// La API devuelve { items, total, page, ... } (paginado), no un arreglo
+const load = async () => {
+  loading.value = true
+  try {
+    const d = (await axios.get('/api/maintenance', { params: { page_size: 500 } })).data
+    items.value = Array.isArray(d) ? d : (d.items || [])
+  } catch {} finally { loading.value = false }
+}
 
 const create = async () => {
   formErr.value=''
@@ -161,8 +175,9 @@ const create = async () => {
   finally { saving.value=false }
 }
 
+// El PATCH del backend espera el estado en el cuerpo JSON (no en la URL)
 const complete = async item => {
-  try { await axios.patch(`/api/maintenance/${item.id}?estado=Completado`); await load() } catch {}
+  try { await axios.patch(`/api/maintenance/${item.id}`, { estado: 'Completado' }); await load() } catch {}
 }
 
 const del = async id => {
