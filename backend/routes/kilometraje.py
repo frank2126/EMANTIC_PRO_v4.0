@@ -29,6 +29,10 @@ def _cfg(db):
         except ValueError: logger.warning("km_config inválido; uso valores por defecto")
     return c
 
+def _who(u):
+    """Usuario que actúa: tu get_current_admin_user devuelve un dict; también acepta objetos."""
+    g = (lambda k: u.get(k)) if isinstance(u, dict) else (lambda k: getattr(u, k, None))
+    return str(g("username") or g("sub") or g("name") or "")
 def _norm(v): return re.sub(r"[^A-Z0-9]", "", str(v or "").upper())
 def _grupo(mv, c): return c["prefijos"].get(mv[:5], "Sin clasificar")
 def _num(v):
@@ -69,18 +73,19 @@ def upload_km(files: List[UploadFile] = File(...), db: Session = Depends(get_db)
                 datos[(mv, d)] = (g("Recorrido"), g("Mín"), g("Máx"))      # el último archivo gana
     fechas = sorted({d for _, d in datos})
     exist = {(l.movil, l.fecha): l for l in db.query(LecturaKmDB).filter(LecturaKmDB.fecha.between(fechas[0], fechas[-1]))}
-    ins = upd = 0
+    ins = upd = 0; nuevos = []
     for (mv, d), (rec, mn, mx) in datos.items():
         l = exist.get((mv, d))
-        if l is None: db.add(LecturaKmDB(movil=mv, fecha=d, recorrido=rec, odo_min=mn, odo_max=mx)); ins += 1
+        if l is None: nuevos.append(dict(movil=mv, fecha=d, recorrido=rec, odo_min=mn, odo_max=mx)); ins += 1
         elif abs(l.recorrido - rec) > .005 or abs(l.odo_min - mn) > .005 or abs(l.odo_max - mx) > .005:
             l.recorrido, l.odo_min, l.odo_max = rec, mn, mx; upd += 1
+    if nuevos: db.bulk_insert_mappings(LecturaKmDB, nuevos)
     base, ult = {x[0] for x in db.query(MovilBaseDB.movil).all()}, {}
     for (mv, d), (_, _, mx) in sorted(datos.items(), key=lambda kv: kv[0][1]):
         if mx > 0: ult[mv] = mx
     for mv, odo in ult.items():
         if mv not in base: db.add(MovilBaseDB(movil=mv, odo_base=odo))
-    db.add(CargaHistorialDB(tipo_carga="km", usuario_id=user.username, nombre_archivo=", ".join(f.filename or "" for f in files)[:300],
+    db.add(CargaHistorialDB(tipo_carga="km", usuario_id=_who(user), nombre_archivo=", ".join(f.filename or "" for f in files)[:300],
                             total_filas=len(datos), filas_insertadas=ins, filas_actualizadas=upd, filas_error=0, estado="exitoso",
                             tiempo_procesamiento_seg=str(round(time.time() - t0, 2))))
     db.commit()
@@ -178,13 +183,13 @@ class AutoIn(BaseModel):
 def programar(b: ProgramarIn, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
     mv = _norm(b.movil); hito = _pend(db, mv, _cfg(db))
     if not hito: raise HTTPException(404, "Móvil sin kilometraje cargado o sin grupo")
-    _prog(db, mv, hito, _fecha(b.fecha), user.username); db.commit(); return {"ok": True}
+    _prog(db, mv, hito, _fecha(b.fecha), _who(user)); db.commit(); return {"ok": True}
 
 @router.post("/intervenir")
 def intervenir(b: IntervenirIn, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
     mv = _norm(b.movil); hito = _pend(db, mv, _cfg(db))
     if not hito: raise HTTPException(404, "Móvil sin kilometraje cargado o sin grupo")
-    _interv(db, mv, hito, _fecha(b.fecha), b.observacion, user.username); db.commit(); return {"ok": True}
+    _interv(db, mv, hito, _fecha(b.fecha), b.observacion, _who(user)); db.commit(); return {"ok": True}
 
 @router.post("/autoprogramar")
 def autoprogramar(b: AutoIn, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
@@ -194,7 +199,7 @@ def autoprogramar(b: AutoIn, db: Session = Depends(get_db), user=Depends(get_cur
     cola = sorted((x for x in r[1] if x["estado"] in ("Vencido", "Próximo") and not x["programado"]), key=lambda x: -1e9 if x["dias"] is None else x["dias"])
     for x in cola:                                          # los más urgentes primero, `capacidad` móviles por día
         if n and n % cap == 0: d += timedelta(days=1)
-        _prog(db, x["movil"], x["hito"], d.isoformat(), user.username); n += 1
+        _prog(db, x["movil"], x["hito"], d.isoformat(), _who(user)); n += 1
     db.commit(); return {"programados": n, "hasta": d.isoformat()}
 
 @router.post("/seguimiento")
@@ -211,8 +216,8 @@ def seguimiento(file: UploadFile = File(...), db: Session = Depends(get_db), use
         mv, e, f = _norm(get(im)), str(get(ie) or "").lower(), _fecha(get(ifc))
         if not mv: continue
         hito = _pend(db, mv, c); good = False
-        if hito and e.startswith("interv"): _interv(db, mv, hito, f, str(get(io_) or ""), user.username); good = True
-        elif hito and e.startswith("prog") and f: _prog(db, mv, hito, f, user.username); good = True
+        if hito and e.startswith("interv"): _interv(db, mv, hito, f, str(get(io_) or ""), _who(user)); good = True
+        elif hito and e.startswith("prog") and f: _prog(db, mv, hito, f, _who(user)); good = True
         ok += good
         if not good: bad.append(mv)
     db.commit(); return {"aplicados": ok, "no_aplicados": bad[:30]}
