@@ -30,7 +30,7 @@
       <div class="tab-scroll">
         <button class="tab-btn" :class="{active: activeTab==='dpv'}" @click="activeTab='dpv'">
           <span>📥</span> DPV
-          <span class="tab-count">{{ store.dpvRaw.length }}</span>
+          <span class="tab-count">{{ store.dpvCompleto ? store.dpvRaw.length : '…' }}</span>
         </button>
         <button class="tab-btn" :class="{active: activeTab==='ico'}" @click="activeTab='ico'">
           <span>📊</span> ICO
@@ -73,31 +73,42 @@
       </div>
     </transition>
 
-    <!-- ── LOADING ── -->
+    <!-- ── LOADING (solo en recargas; la primera carga usa el skeleton) ── -->
     <transition name="fade-slide">
-      <div v-if="store.loading" class="loading-banner">
+      <div v-if="store.loading && !primeraCarga" class="loading-banner">
         <div class="spinner"></div>
-        <span>Cargando datos desde el servidor...</span>
+        <span>Actualizando datos...</span>
       </div>
     </transition>
 
     <!-- ── CONTENIDO ── -->
-    <DashboardDPV v-show="activeTab === 'dpv'" />
-    <DashboardICO v-show="activeTab === 'ico'" />
-    <DashboardDisponibilidad v-show="activeTab === 'disponibilidad'" />
+    <DashboardSkeleton v-if="primeraCarga" />
+    <template v-else>
+      <DashboardDPV v-show="activeTab === 'dpv'" />
+      <DashboardICO v-if="visitados.ico" v-show="activeTab === 'ico'" />
+      <DashboardDisponibilidad v-if="visitados.disponibilidad" v-show="activeTab === 'disponibilidad'" />
+    </template>
 
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useDashboardStore } from './dashboardStore.js'
+import DashboardSkeleton from './DashboardSkeleton.vue'
 import DashboardDPV from './DashboardDPV.vue'
 import DashboardICO from './DashboardICO.vue'
 import DashboardDisponibilidad from './DashboardDisponibilidad.vue'
 
 const store     = useDashboardStore()
 const activeTab = ref('dpv')
+
+// Las pestañas ICO y Disponibilidad se montan solo la primera vez que se visitan
+const visitados = reactive({ ico: false, disponibilidad: false })
+watch(activeTab, t => { if (t in visitados) visitados[t] = true }, { immediate: true })
+
+// Skeleton solo mientras llega la primera respuesta
+const primeraCarga = computed(() => store.loading && !store.dpvRaw.length)
 
 const fechaHoy = new Date().toLocaleDateString('es-CO', {
   weekday:'long', year:'numeric', month:'long', day:'numeric'
@@ -123,9 +134,9 @@ const dispClass = (pct) => {
   return 'disp-bad'
 }
 
+// cargarDatos() ya dispara en segundo plano ICO, DPV mensual y disponibilidad
 onMounted(() => {
   store.cargarDatos()
-  store.cargarDisponibilidad()
 })
 </script>
 

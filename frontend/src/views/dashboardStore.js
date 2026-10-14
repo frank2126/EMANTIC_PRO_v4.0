@@ -1,4 +1,4 @@
-// dashboardStore.js — VERSION DEFINITIVA CORREGIDA + DPV MENSUAL
+// dashboardStore.js — carga en dos fases (mes en curso primero, resto en segundo plano)
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
@@ -11,7 +11,8 @@ function normDPV(r) {
     placa:                (r.placa  || '').trim(),
     movil:                (r.movil  || '').trim(),
     causa_inmovilizacion: (r.causa  || r.causa_inmovilizacion || '').trim(),
-    descripcion:          (r.descripcion || '').trim(),
+    descripcion:          (r.descripcion || r.descripcion_novedad || '').trim(),
+    operador:             (r.operador || '').trim(),
     fecha:                (r.fecha || r.fecha_inmovilizacion || '').slice(0, 10),
     hora:                 (r.hora  || '').slice(0, 8),
     tipologia:            (r.tipologia || '').trim().toUpperCase(),
@@ -45,6 +46,12 @@ function normICO(r) {
   }
 }
 
+// Mes en curso en formato 'YYYY-MM' (hora local, no UTC)
+function mesActual() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     dpvRaw:  [],
@@ -53,19 +60,10 @@ export const useDashboardStore = defineStore('dashboard', {
     error:   null,
     lastSync: null,
 
-    // en state():
-disponibilidad: { e10: null, e16: null },
+    // true cuando ya se descargó TODO el DPV (necesario para el % y el contador del tab)
+    dpvCompleto: false,
 
-// en actions:
-async cargarDisponibilidad() {
-  try {
-    const { data } = await axios.get('/api/disponibilidad')
-    this.disponibilidad.e10 = data?.e10 || null
-    this.disponibilidad.e16 = data?.e16 || null
-  } catch (e) {
-    console.error('[Store] Error cargando disponibilidad:', e)
-  }
-},
+    disponibilidad: { e10: null, e16: null },
 
     // ── DPV Mensual por Kilometraje ──────────────────────────
     dpvMensual: {
@@ -92,11 +90,11 @@ async cargarDisponibilidad() {
 
   getters: {
 
-      dpvFiltrado(state) {
+    dpvFiltrado(state) {
       return state.dpvRaw.filter(r => {
-      if (state.dpvFiltros.mes && r.fecha.slice(0, 7) !== state.dpvFiltros.mes) return false
+        if (state.dpvFiltros.mes && r.fecha.slice(0, 7) !== state.dpvFiltros.mes) return false
 
-    if (state.dpvFiltros.franja.length > 0) {
+        if (state.dpvFiltros.franja.length > 0) {
           const f = r.franja
           const okAM = state.dpvFiltros.franja.includes('AM') && f === 'AM'
           const okPM = state.dpvFiltros.franja.includes('PM') && f === 'PM'
@@ -345,30 +343,61 @@ async cargarDisponibilidad() {
       this.icoFiltros = { fecha_desde:'', fecha_hasta:'', empresa:'', tipo_novedad:'', estado:'', busqueda:'' }
     },
 
+    // ── FASE 1: solo el mes que se está viendo (rápido) ──────────────
     async cargarDatos() {
       this.loading = true
       this.error   = null
+      this.dpvCompleto = false
       try {
-        const [resDPV, resICO] = await Promise.all([
-          axios.get('/api/dpv?limit=9999').catch(() => ({ data: { items: [] } })),
-          axios.get('/api/ico?limit=9999').catch(() => ({ data: { items: [] } })),
-        ])
-
-        const dpvItems = Array.isArray(resDPV.data) ? resDPV.data : (resDPV.data?.items || [])
-        const icoItems = Array.isArray(resICO.data) ? resICO.data : (resICO.data?.items || [])
-
-        this.dpvRaw  = dpvItems.map(normDPV)
-        this.icoRaw  = icoItems.map(normICO)
+        const mes = this.dpvFiltros.mes || mesActual()
+        const { data } = await axios.get('/api/dpv', {
+          params: { mes, slim: true, limit: 5000 },
+        })
+        this.dpvRaw   = (data?.items || []).map(normDPV)
         this.lastSync = new Date().toLocaleString('es-CO')
-
-        // Carga en paralelo el DPV mensual (no bloquea si falla)
-        this.cargarDpvMensual()
-
       } catch (e) {
-        this.error = e.message
-        console.error('[Store] Error cargando datos:', e)
+        this.error = e.response?.data?.detail || e.message
+        console.error('[Store] Error cargando DPV:', e)
       } finally {
         this.loading = false
+      }
+
+      // ── FASE 2: en segundo plano, sin bloquear la pantalla ──
+      this.cargarDpvCompleto()
+      this.cargarIco()
+      this.cargarDpvMensual()
+      this.cargarDisponibilidad()
+    },
+
+    async cargarDpvCompleto() {
+      try {
+        const { data } = await axios.get('/api/dpv', {
+          params: { slim: true, limit: 20000 },
+        })
+        this.dpvRaw      = (data?.items || []).map(normDPV)
+        this.dpvCompleto = true
+      } catch (e) {
+        console.error('[Store] Error cargando DPV completo:', e)
+      }
+    },
+
+    async cargarIco() {
+      try {
+        const { data } = await axios.get('/api/ico', { params: { limit: 9999 } })
+        const items = Array.isArray(data) ? data : (data?.items || [])
+        this.icoRaw = items.map(normICO)
+      } catch (e) {
+        console.error('[Store] Error cargando ICO:', e)
+      }
+    },
+
+    async cargarDisponibilidad() {
+      try {
+        const { data } = await axios.get('/api/disponibilidad')
+        this.disponibilidad.e10 = data?.e10 || null
+        this.disponibilidad.e16 = data?.e16 || null
+      } catch (e) {
+        console.error('[Store] Error cargando disponibilidad:', e)
       }
     },
 
