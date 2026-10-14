@@ -409,3 +409,52 @@ class ProgramacionMovilDB(Base):
     updated_by         = Column(String(100), default="")
     updated_at         = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     __table_args__ = (UniqueConstraint('movil', 'hito_km', name='uq_prog_movil_hito'),)
+
+    # ═══════════════════════════════════════════════════════════
+#  PEGAR AL FINAL DE backend/database.py  (usa los imports que ya tiene)
+#  init_db() ya hace Base.metadata.create_all → crea las 3 tablas solas al reiniciar.
+# ═══════════════════════════════════════════════════════════
+
+class ChecklistReporteDB(Base):
+    """Un reporte 'Necesita atención' del check list del operador (una fila del Excel)."""
+    __tablename__ = "checklist_reportes"
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    movil           = Column(String(20), nullable=False, index=True)
+    estado          = Column(String(50), default="")
+    fecha_creacion  = Column(DateTime, nullable=False, index=True)
+    lugar           = Column(String(50), default="")
+    codigo_conductor = Column(String(20), default="")
+    nombre_conductor = Column(String(200), default="")
+    notas           = Column(Text, default="")
+    ruta            = Column(String(30), default="")
+    items_texto     = Column(Text, default="")        # texto original completo de 'Items de atención'
+    created_at      = Column(DateTime, default=datetime.datetime.utcnow)
+    # Evita duplicados cuando el Excel (día de por medio) se traslapa con el anterior
+    __table_args__ = (UniqueConstraint('movil', 'fecha_creacion', 'codigo_conductor', name='uq_chk_rep'),)
+
+class ChecklistItemDB(Base):
+    """Cada ítem de mantenimiento (de los 12 del catálogo) dentro de un reporte."""
+    __tablename__ = "checklist_items"
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    reporte_id      = Column(Integer, nullable=False, index=True)
+    movil           = Column(String(20), nullable=False, index=True)
+    item            = Column(String(100), nullable=False, index=True)
+    fecha_creacion  = Column(DateTime, nullable=False)
+    codigo_conductor = Column(String(20), default="")
+    nombre_conductor = Column(String(200), default="")
+    __table_args__ = (UniqueConstraint('reporte_id', 'item', name='uq_chk_item'),)
+
+class ChecklistSeguimientoDB(Base):
+    """Seguimiento por móvil + ítem: Pendiente/Programado (abierto) → Intervenido (queda como historial)."""
+    __tablename__ = "checklist_seguimiento"
+    id                 = Column(Integer, primary_key=True, autoincrement=True)
+    movil              = Column(String(20), nullable=False, index=True)
+    item               = Column(String(100), nullable=False)
+    estado             = Column(String(20), default="Pendiente")
+    fecha_programada   = Column(String(10), default="")
+    fecha_intervencion = Column(String(10), default="")
+    orden_trabajo      = Column(String(50), default="")       # opcional
+    observacion        = Column(String(300), default="")
+    corte_fecha        = Column(DateTime, nullable=True)      # reportes <= corte ya se dan por atendidos
+    updated_by         = Column(String(100), default="")
+    updated_at         = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

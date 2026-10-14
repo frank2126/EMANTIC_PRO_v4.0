@@ -428,14 +428,22 @@ const heroStats = computed(() => {
   ]
 })
 
+// ── Detección de marca: única fuente de verdad ──
+// La usan tanto el filtro de marca como los logos/badges de cada tarjeta,
+// así nunca vuelven a desincronizarse (antes el filtro solo buscaba
+// "volkswagen" completo, mientras que el logo también aceptaba "vw").
+const detectBrand = m => {
+  if (m.brand) return m.brand // si el backend llega a traer la marca explícita, se usa esa
+  const t = (m.title + ' ' + (m.description || '')).toLowerCase()
+  if (t.includes('scania')) return 'Scania'
+  if (t.includes('volkswagen') || t.includes('vw')) return 'Volkswagen'
+  return null
+}
+
 // Filtra por marca Y categoría
 const filtered = computed(() => {
   let list = manuals.value
-  if (activeBrand.value) list = list.filter(m => {
-    const t = (m.title + ' ' + (m.description||'')).toLowerCase()
-    return t.includes(activeBrand.value.toLowerCase()) ||
-           (m.brand && m.brand === activeBrand.value)
-  })
+  if (activeBrand.value) list = list.filter(m => detectBrand(m) === activeBrand.value)
   if (activeCat.value) list = list.filter(m => m.category === activeCat.value)
   return list
 })
@@ -532,21 +540,21 @@ const summaryIconSvg = computed(() => {
 })
 
 const brandClass = m => {
-  const t = (m.title + ' ' + (m.description||'')).toLowerCase()
-  if (t.includes('scania'))     return 'mc-pdf--scania'
-  if (t.includes('volkswagen') || t.includes('vw')) return 'mc-pdf--vw'
+  const b = detectBrand(m)
+  if (b === 'Scania')     return 'mc-pdf--scania'
+  if (b === 'Volkswagen') return 'mc-pdf--vw'
   return ''
 }
 const brandTag = m => {
-  const t = (m.title + ' ' + (m.description||'')).toLowerCase()
-  if (t.includes('scania'))     return 'SCN'
-  if (t.includes('volkswagen') || t.includes('vw')) return 'VW'
+  const b = detectBrand(m)
+  if (b === 'Scania')     return 'SCN'
+  if (b === 'Volkswagen') return 'VW'
   return 'PDF'
 }
 const brandLogo = m => {
-  const t = (m.title + ' ' + (m.description||'')).toLowerCase()
-  if (t.includes('scania')) return scaniaLogo
-  if (t.includes('volkswagen') || t.includes('vw')) return vwLogo
+  const b = detectBrand(m)
+  if (b === 'Scania')     return scaniaLogo
+  if (b === 'Volkswagen') return vwLogo
   return null
 }
 const load = async () => {
