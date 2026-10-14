@@ -50,7 +50,7 @@
     </div>
     <div class="kpi-blk kpi-pct-blk">
       <div class="kl">PORCENTAJE</div>
-      <div class="kn kn-pct">{{ store.dpvPorcentaje }}%</div>
+      <div class="kn kn-pct">{{ store.dpvCompleto ? store.dpvPorcentaje + '%' : '…' }}</div>
     </div>
     <div class="dona-wrap">
       <div class="dona-lbl">TIPOLOGÍA</div>
@@ -341,7 +341,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useDashboardStore } from './dashboardStore.js'
 
 const store = useDashboardStore()
@@ -414,13 +414,6 @@ const causaColor = (v, mx) => {
   if (r >= 0.4) return '#F59E0B'
   return '#22C55E'
 }
-
-// ══ DPV MENSUAL POR KILOMETRAJE — gráficas lineales (SVG puro) ══
-onMounted(() => {
-  if (!store.dpvMensual.e10.length && !store.dpvMensual.e16.length) {
-    store.cargarDpvMensual()
-  }
-})
 
 const CHART_W = 900, CHART_H = 130
 const PAD_LEFT = 55, PAD_RIGHT = 15, PAD_TOP = 14, PAD_BOTTOM = 26

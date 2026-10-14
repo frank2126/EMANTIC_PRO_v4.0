@@ -487,27 +487,37 @@
 
   </div>
 
-  <!-- Login sin navbar -->
+    <!-- Login sin navbar -->
   <router-view v-else />
+
+  <!-- Pantalla de transición (login / cerrar sesión) -->
+  <AppLoader />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useAuth } from './auth.js'
+import { useLoader } from './loader.js'
+import AppLoader from './components/AppLoader.vue'
 
 const router      = useRouter()
 const { state, logout, isAdmin, isLoggedIn } = useAuth()
+const loader      = useLoader()
 const menuOpen    = ref(false)
 const drawerOpen  = ref(false)
 const userInitial = computed(() => state.user?.name?.charAt(0).toUpperCase() || '?')
 const currentYear = computed(() => new Date().getFullYear())
 
-const handleLogout = () => {
-  logout()
-  menuOpen.value  = false
+const handleLogout = async () => {
+  menuOpen.value   = false
   drawerOpen.value = false
-  router.push('/login')
+  await loader.run('Cerrando sesión', 'Guardando tu sesión de forma segura…', async () => {
+    try { await axios.post('/api/auth/logout') } catch {}   // avisa al servidor; si falla, igual se cierra
+    logout()
+    await router.push('/login')
+  }, { min: 900 })
 }
 </script>
 

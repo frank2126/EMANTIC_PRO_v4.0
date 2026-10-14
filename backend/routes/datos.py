@@ -293,16 +293,41 @@ async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db)
                for r in registros[:10]]
     return respuesta(total, ins, upd, errores, seg, {"preview": preview})
 
+# Columnas que realmente usa el dashboard (evita enviar descripcion_novedad, created_at, etc.)
+DPV_SLIM = ("id", "dpv_id", "estado", "empresa", "placa", "movil", "tipologia",
+            "fecha_inmovilizacion", "hora", "causa_inmovilizacion", "ruta",
+            "operador", "dia_semana", "alerta", "franja_horaria")
+
 
 @router.get("/dpv")
 def listar_dpv(limit: int = Query(100, ge=1, le=100000), offset: int = Query(0, ge=0),
+               mes: Optional[str] = None, slim: bool = False,
                db: Session = Depends(get_db), user: Dict = Depends(get_current_user)):
     q = db.query(DpvRegistroDB)
-    total = q.count()
-    items = q.order_by(DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc()) \
-             .offset(offset).limit(limit).all()
-    return {"total": total, "items": [row_to_dict(i) for i in items]}
 
+    # Filtro por mes ('YYYY-MM'): usa to_mes(), que ya entiende ese formato
+    if mes:
+        d = to_mes(mes)
+        if d:
+            fin = datetime(d.year + (1 if d.month == 12 else 0), d.month % 12 + 1, 1)
+            q = q.filter(DpvRegistroDB.fecha_inmovilizacion >= d,
+                         DpvRegistroDB.fecha_inmovilizacion < fin)
+
+    total = q.count()
+    orden = (DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc())
+
+    if slim:
+        cols = [getattr(DpvRegistroDB, c) for c in DPV_SLIM]
+        filas = q.with_entities(*cols).order_by(*orden).offset(offset).limit(limit).all()
+        items = [
+            {c: (v.isoformat() if isinstance(v, (datetime, date)) else v)
+             for c, v in zip(DPV_SLIM, f)}
+            for f in filas
+        ]
+    else:
+        items = [row_to_dict(i) for i in q.order_by(*orden).offset(offset).limit(limit).all()]
+
+    return {"total": total, "items": items}
 
 # ═══════════════════════════════════════════════════════════
 #  ICO
