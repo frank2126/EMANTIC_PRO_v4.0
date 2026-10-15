@@ -1,101 +1,109 @@
 <template>
   <div class="page">
 
-    <!-- ══ HERO — DOCUMENTACIÓN TÉCNICA ══ -->
-    <div class="docs-hero" :style="{ backgroundImage: `url(${docsHeroImg})` }">
-      <div class="docs-hero-overlay">
-        <div class="docs-hero-content">
-          <div class="docs-hero-eyebrow">EMASIVO · GESTIÓN DOCUMENTAL</div>
-          <h1 class="docs-hero-title">Documentación Técnica</h1>
-          <p class="docs-hero-sub">Actas, presentaciones, certificaciones y documentos oficiales de la operación técnica de la flota.</p>
+    <template v-if="!readerId">
 
-          <div v-if="heroStats.length" class="docs-hero-stats">
-            <div v-for="s in heroStats" :key="s.label" class="dh-stat">
-              <div class="dh-stat-value">{{ s.value }}</div>
-              <div class="dh-stat-label">{{ s.label }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <!-- ══ HERO — DOCUMENTACIÓN TÉCNICA ══ -->
+      <div class="docs-hero" :style="{ backgroundImage: `url(${docsHeroImg})` }">
+        <div class="docs-hero-overlay">
+          <div class="docs-hero-content">
+            <div class="docs-hero-eyebrow">EMASIVO · GESTIÓN DOCUMENTAL</div>
+            <h1 class="docs-hero-title">Documentación Técnica</h1>
+            <p class="docs-hero-sub">Actas, presentaciones, certificaciones y documentos oficiales de la operación técnica de la flota.</p>
 
-    <div class="page-header page-header--slim">
-      <button class="btn-primary" @click="showUpload = !showUpload">↑ Subir Documento</button>
-    </div>
-
-    <transition name="slide">
-      <div v-if="showUpload" class="card upload-card">
-        <h3 class="card-title">Subir nuevo documento</h3>
-        <div class="form-grid">
-          <div class="fgroup">
-            <label class="label">Título</label>
-            <input v-model="form.title" class="input" placeholder="Ej: Normativa DOT 2025" />
-          </div>
-          <div class="fgroup">
-            <label class="label">Categoría</label>
-            <select v-model="form.category" class="input">
-              <option v-for="c in CATEGORIES" :key="c">{{ c }}</option>
-            </select>
-          </div>
-          <div class="fgroup form-full">
-            <div class="drop-zone" @click="$refs.fi.click()" @dragover.prevent @drop.prevent="e => form.file = e.dataTransfer.files[0]">
-              <span v-if="!form.file">📎 Arrastra tu archivo o haz clic (PDF, XLS, DOC, PPT...)</span>
-              <span v-else style="color:var(--success)">✅ {{ form.file.name }}</span>
-            </div>
-            <input ref="fi" type="file" style="display:none" @change="e => form.file = e.target.files[0]" />
-          </div>
-        </div>
-        <p v-if="uploadErr" class="err-msg">{{ uploadErr }}</p>
-        <div class="form-actions">
-          <button class="btn-secondary" @click="showUpload=false">Cancelar</button>
-          <button class="btn-primary" :disabled="uploading||!form.file" @click="upload">{{ uploading?'Subiendo...':'↑ Subir' }}</button>
-        </div>
-      </div>
-    </transition>
-
-    <!-- Panel izquierdo + área de documentos -->
-    <div class="docs-layout">
-
-      <!-- Columna de categorías (igual que Manuales) -->
-      <div class="card cat-panel">
-        <h3 class="cat-title">Categorías</h3>
-        <button class="cat-btn" :class="{active:!activeCat}" @click="activeCat=null">
-          <span class="cat-icon" v-html="iconAll"></span>
-          Todas
-        </button>
-        <button v-for="c in CATEGORIES" :key="c" class="cat-btn" :class="{active:activeCat===c}" @click="activeCat=c">
-          <img v-if="catImage(c)" :src="catImage(c)" class="cat-icon-img" alt="" />
-          <span v-else class="cat-icon" v-html="catIconSvg(c)"></span>
-          {{ c }}
-        </button>
-      </div>
-
-      <!-- Área de documentos -->
-      <div class="docs-area">
-        <div v-if="loading" class="empty-state"><span class="empty-icon">⏳</span><p>Cargando...</p></div>
-        <div v-else-if="filteredDocs.length===0" class="empty-state">
-          <span class="empty-icon">📭</span>
-          <p>No hay documentos{{ activeCat ? ` en "${activeCat}"` : ' cargados aún' }}</p>
-          <p v-if="!activeCat" style="font-size:13px;margin-top:6px">Usa el botón "↑ Subir Documento" para agregar archivos</p>
-        </div>
-        <div v-else class="files-grid">
-          <div v-for="doc in filteredDocs" :key="doc.id" class="card file-card">
-            <div class="fc-top">
-              <div class="fc-icon">{{ fileIcon(doc.ext) }}</div>
-              <div class="fc-info">
-                <a :href="doc.url" target="_blank" class="fc-name">{{ doc.title }}</a>
-                <span class="fc-meta">{{ doc.category }} · {{ doc.ext }} · {{ doc.size_kb }} KB · {{ doc.uploaded_at }}</span>
+            <div v-if="heroStats.length" class="docs-hero-stats">
+              <div v-for="s in heroStats" :key="s.label" class="dh-stat">
+                <div class="dh-stat-value">{{ s.value }}</div>
+                <div class="dh-stat-label">{{ s.label }}</div>
               </div>
             </div>
-            <div class="fc-actions">
-              <a :href="doc.url" target="_blank" class="btn-secondary btn-sm">👁 Ver</a>
-              <a :href="doc.url" :download="doc.title" class="btn-secondary btn-sm">⬇ Descargar</a>
-              <button v-if="isAdmin()" class="btn-del-sm" @click="del(doc.id)">🗑</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-header page-header--slim">
+        <button class="btn-primary" @click="showUpload = !showUpload">↑ Subir Documento</button>
+      </div>
+
+      <transition name="slide">
+        <div v-if="showUpload" class="card upload-card">
+          <h3 class="card-title">Subir nuevo documento</h3>
+          <div class="form-grid">
+            <div class="fgroup">
+              <label class="label">Título</label>
+              <input v-model="form.title" class="input" placeholder="Ej: Normativa DOT 2025" />
+            </div>
+            <div class="fgroup">
+              <label class="label">Categoría</label>
+              <select v-model="form.category" class="input">
+                <option v-for="c in CATEGORIES" :key="c">{{ c }}</option>
+              </select>
+            </div>
+            <div class="fgroup form-full">
+              <div class="drop-zone" @click="$refs.fi.click()" @dragover.prevent @drop.prevent="e => form.file = e.dataTransfer.files[0]">
+                <span v-if="!form.file">📎 Arrastra tu archivo o haz clic (PDF, XLS, DOC, PPT...)</span>
+                <span v-else style="color:var(--success)">✅ {{ form.file.name }}</span>
+              </div>
+              <input ref="fi" type="file" style="display:none" @change="e => form.file = e.target.files[0]" />
+            </div>
+          </div>
+          <p v-if="uploadErr" class="err-msg">{{ uploadErr }}</p>
+          <div class="form-actions">
+            <button class="btn-secondary" @click="showUpload=false">Cancelar</button>
+            <button class="btn-primary" :disabled="uploading||!form.file" @click="upload">{{ uploading?'Subiendo...':'↑ Subir' }}</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Panel izquierdo + área de documentos -->
+      <div class="docs-layout">
+
+        <!-- Columna de categorías (igual que Manuales) -->
+        <div class="card cat-panel">
+          <h3 class="cat-title">Categorías</h3>
+          <button class="cat-btn" :class="{active:!activeCat}" @click="activeCat=null">
+            <span class="cat-icon" v-html="iconAll"></span>
+            Todas
+          </button>
+          <button v-for="c in CATEGORIES" :key="c" class="cat-btn" :class="{active:activeCat===c}" @click="activeCat=c">
+            <img v-if="catImage(c)" :src="catImage(c)" class="cat-icon-img" alt="" />
+            <span v-else class="cat-icon" v-html="catIconSvg(c)"></span>
+            {{ c }}
+          </button>
+        </div>
+
+        <!-- Área de documentos -->
+        <div class="docs-area">
+          <div v-if="loading" class="empty-state"><span class="empty-icon">⏳</span><p>Cargando...</p></div>
+          <div v-else-if="filteredDocs.length===0" class="empty-state">
+            <span class="empty-icon">📭</span>
+            <p>No hay documentos{{ activeCat ? ` en "${activeCat}"` : ' cargados aún' }}</p>
+            <p v-if="!activeCat" style="font-size:13px;margin-top:6px">Usa el botón "↑ Subir Documento" para agregar archivos</p>
+          </div>
+          <div v-else class="files-grid">
+            <div v-for="doc in filteredDocs" :key="doc.id" class="card file-card">
+              <div class="fc-top">
+                <div class="fc-icon">{{ fileIcon(doc.ext) }}</div>
+                <div class="fc-info">
+                  <button class="fc-name fc-name-btn" @click="openReader(doc)">{{ doc.title }}</button>
+                  <span class="fc-meta">{{ doc.category }} · {{ doc.ext }} · {{ doc.size_kb }} KB · {{ doc.uploaded_at }}</span>
+                </div>
+              </div>
+              <div class="fc-actions">
+                <button class="btn-secondary btn-sm" @click="openReader(doc)">📖 Leer</button>
+                <a :href="doc.url" :download="doc.title" class="btn-secondary btn-sm">⬇ Descargar</a>
+                <button v-if="isAdmin()" class="btn-del-sm" @click="del(doc.id)">🗑</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+    </template>
+
+    <!-- ══ LECTOR: pestañas por documento + resumen rápido + descarga lateral ══ -->
+    <DocReader v-else :docs="readerDocs" :initial-id="readerId" @close="readerId = null" />
+
   </div>
 </template>
 
@@ -106,6 +114,7 @@ import transmilenioLogo from '../assets/transmilenio-logo.png'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuth } from '../auth.js'
+import DocReader from '../components/DocReader.vue'
 const { isAdmin } = useAuth()
 
 const CATEGORIES = [
@@ -132,6 +141,14 @@ const form       = ref({ title:'', category:CATEGORIES[0], file:null })
 const filteredDocs = computed(() =>
   activeCat.value ? docs.value.filter(d => d.category === activeCat.value) : docs.value
 )
+
+// ── Lector de documentos ──
+const readerId = ref(null)
+const readerDocs = computed(() => {
+  const d = docs.value.find(x => x.id === readerId.value)
+  return d ? docs.value.filter(x => x.category === d.category) : []
+})
+const openReader = doc => { readerId.value = doc.id; window.scrollTo({ top: 0 }) }
 
 // Datos reales para el hero: total de documentos, categorías, tipos de archivo distintos
 const heroStats = computed(() => {
@@ -293,6 +310,7 @@ onMounted(load)
 .fc-icon      { width:44px; height:44px; background:var(--primary-light); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
 .fc-name      { font-size:14px; font-weight:600; color:var(--primary); text-decoration:none; display:block; line-height:1.3; margin-bottom:4px; }
 .fc-name:hover { text-decoration:underline; }
+.fc-name-btn  { background:none; border:0; padding:0; text-align:left; cursor:pointer; font-family:inherit; }
 .fc-meta      { font-size:11px; color:var(--text-muted); line-height:1.4; }
 .fc-actions   { display:flex; gap:8px; flex-wrap:wrap; }
 .btn-sm       { padding:6px 12px !important; font-size:12px !important; }

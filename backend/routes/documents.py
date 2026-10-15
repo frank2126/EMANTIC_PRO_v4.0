@@ -1,11 +1,13 @@
 """
 EMANTIC PRO - Rutas de Documentación
-Endpoints consumidos por Documentation.vue:
-  GET    /api/docs            -> lista de documentos
-  POST   /api/docs/upload     -> subir documento (title, category, file)
-  DELETE /api/docs/{doc_id}   -> eliminar (solo admin)
+Endpoints consumidos por Documentation.vue y DocReader.vue:
+  GET    /api/docs                  -> lista de documentos
+  POST   /api/docs/upload           -> subir documento (title, category, file)
+  GET    /api/docs/{doc_id}/resumen -> resumen de lectura rápida (si existe)
+  DELETE /api/docs/{doc_id}         -> eliminar (solo admin)
 """
 
+import json
 import os
 import re
 import uuid
@@ -28,6 +30,8 @@ router = APIRouter(prefix="/api/docs", tags=["documentos"])
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+SUMMARY_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "doc_summaries.json")
 
 MAX_SIZE_MB = 100
 ALLOWED_EXT = {
@@ -56,6 +60,22 @@ def _doc_to_dict(d: DocumentDB) -> dict:
     }
 
 
+def _norm_code(s: str) -> str:
+    """'M-DB-003' -> 'MDB003' para comparar códigos sin importar guiones o espacios."""
+    return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
+
+def _load_summaries() -> dict:
+    try:
+        with open(SUMMARY_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning("No se pudo leer %s", SUMMARY_PATH)
+        return {}
+
+
+# ── LISTAR ─────────────────────────────────────────────────
+
 @router.get("")
 def list_docs(
     category: Optional[str] = None,
@@ -65,10 +85,12 @@ def list_docs(
     q = db.query(DocumentDB)
     if category:
         q = q.filter(DocumentDB.category == category)
-    # SQL Server exige ORDER BY consistente; uploaded_at es texto, id desempata
+    # uploaded_at es texto; id desempata para que el orden sea estable
     docs = q.order_by(desc(DocumentDB.uploaded_at), desc(DocumentDB.id)).all()
     return [_doc_to_dict(d) for d in docs]
 
+
+# ── SUBIR ──────────────────────────────────────────────────
 
 @router.post("/upload")
 async def upload_doc(
@@ -93,7 +115,7 @@ async def upload_doc(
     if len(content) > MAX_SIZE_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail=f"El archivo supera {MAX_SIZE_MB} MB")
 
-    # Si es PDF, verificar firma real del archivo
+    # Si es PDF, verificar la firma real del archivo
     if ext == "pdf" and not content.startswith(b"%PDF"):
         raise HTTPException(status_code=400, detail="El archivo no es un PDF válido")
 
@@ -137,6 +159,32 @@ async def upload_doc(
     logger.info("Documento subido por %s: %s", _username(user), stored_name)
     return {**_doc_to_dict(doc), "message": "Documento subido correctamente"}
 
+
+# ── RESUMEN DE LECTURA RÁPIDA ──────────────────────────────
+
+@router.get("/{doc_id}/resumen")
+def doc_resumen(
+    doc_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Devuelve el resumen si el nombre de archivo o el título del documento contiene
+    un código registrado en data/doc_summaries.json (ej. M-DB-003).
+    Si no hay resumen, devuelve {"resumen": null}.
+    """
+    doc = db.query(DocumentDB).filter(DocumentDB.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    haystack = _norm_code(doc.filename) + _norm_code(doc.title)
+    for codigo, data in _load_summaries().items():
+        if _norm_code(codigo) in haystack:
+            return {"resumen": data}
+    return {"resumen": None}
+
+
+# ── ELIMINAR ───────────────────────────────────────────────
 
 @router.delete("/{doc_id}")
 def delete_doc(

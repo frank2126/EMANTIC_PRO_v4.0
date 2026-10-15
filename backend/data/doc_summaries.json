@@ -1,0 +1,267 @@
+{
+  "M-DB-003": {
+    "titulo": "Manual de Operaciones del Componente Zonal del SITP",
+    "subtitulo": "Rutas urbanas, complementarias, especiales y alimentadoras",
+    "codigo": "M-DB-003",
+    "version": "3",
+    "fecha": "Junio de 2021",
+    "emisor": "TRANSMILENIO S.A. · Alcaldía Mayor de Bogotá",
+    "paginas": 156,
+    "resumen": "Reglamenta cómo debe operar el componente zonal del transporte público de Bogotá: qué exige TRANSMILENIO S.A. a los buses, a los conductores y a los concesionarios, cómo se programa, supervisa y liquida la operación, y qué infracciones generan puntos o inmovilizan un vehículo. Para el taller, lo más importante está en el Capítulo 3 (vehículos, inspecciones, inmovilización y mantenimiento) y en el Capítulo 11 (infracciones, plazos de corrección y puntos).",
+    "datos_clave": [
+      { "valor": "156", "etiqueta": "páginas y 12 capítulos" },
+      { "valor": "3", "etiqueta": "niveles de impacto en infracciones de vehículo" },
+      { "valor": "5 días", "etiqueta": "para revisar un bus inmovilizado en patio" },
+      { "valor": "1 a 3 h", "etiqueta": "para retirar un bus detenido en vía" }
+    ],
+    "para_taller": [
+      "Frenos, dirección, llantas sin labrado, puertas, fugas, extintores y emisiones fuera de norma son infracciones Tipo 3: el bus se inmoviliza y suma 30 puntos.",
+      "Los testigos rojos tienen 5 días de plazo de corrección; los amarillos o naranja, 2 días.",
+      "Si corriges dentro del plazo y subes la evidencia con foto (con fecha y hora), no se aplican puntos.",
+      "Las fallas de frenos o dirección nunca se reparan en la vía: el bus se remolca al patio-taller.",
+      "La hoja de vida del bus y los documentos (SOAT, revisión técnico-mecánica, pólizas, tarjeta de operación) deben estar siempre vigentes.",
+      "Un bus detenido en la vía debe retirarse en 1 hora (hasta 20 km del patio), 2 horas (hasta 40 km) o 3 horas (más de 40 km)."
+    ],
+    "secciones": [
+      {
+        "id": "alcance",
+        "titulo": "Qué es el manual y a quién obliga",
+        "capitulo": "Capítulos 1 y 2",
+        "paginas": "9–16",
+        "puntos": [
+          "Lo expide TRANSMILENIO S.A. como Ente Gestor del Sistema Integrado de Transporte Público (SITP) y aplica a las rutas urbanas, complementarias, especiales y alimentadoras.",
+          "Obliga a TRANSMILENIO y a todos los agentes del sistema: concesionarios de provisión y de operación, conductores, personal de patio y de mantenimiento.",
+          "Bogotá está dividida en 14 zonas: 9 con concesionarios Fase III, 4 repartidas en 18 Unidades Funcionales y 1 zona neutra en el centro expandido.",
+          "TRANSMILENIO puede evaluar al personal sobre el manual cuando lo considere. Quien no lo conozca no puede intervenir en la operación hasta demostrar que lo aprendió.",
+          "Presentarse al servicio en estado de embriaguez o bajo sustancias que alteren la vigilia es falta grave y causal de retiro del sistema."
+        ]
+      },
+      {
+        "id": "vinculacion",
+        "titulo": "Vinculación de la flota y certificado (CVS)",
+        "capitulo": "Capítulo 3, numerales 3.1 y 3.2",
+        "paginas": "17–20",
+        "puntos": [
+          "Cada bus necesita un Certificado de Vinculación al Servicio (CVS): es individual, numerado y asociado a una zona. Una copia debe ir siempre dentro del vehículo. Sin CVS no se opera ni se remunera.",
+          "La vigencia del CVS depende de la tarjeta de operación. Para renovarlo deben estar vigentes el SOAT, la revisión técnico-mecánica y las pólizas de responsabilidad civil.",
+          "La flota que entra debe ser nueva y accesible para personas con movilidad reducida, de modelo no anterior al año previo a la solicitud. En contratos Fase III se acepta flota usada con vida útil menor a 12 años.",
+          "Los alimentadores nuevos llevan sensor de peso con alerta sonora y luminosa cuando la carga supera en 2 % la masa máxima admisible. Se calibra una vez al año por el fabricante o el proveedor.",
+          "TRANSMILENIO resuelve la vinculación en máximo 15 días hábiles.",
+          "Un bus vinculado solo opera en su zona, salvo autorización previa y escrita."
+        ]
+      },
+      {
+        "id": "inspecciones",
+        "titulo": "Inspecciones a los buses",
+        "capitulo": "Capítulo 3, numerales 3.3 y 3.4",
+        "paginas": "20–24",
+        "tablas": [
+          {
+            "titulo": "Tipos de inspección",
+            "columnas": ["Tipo", "Cuándo", "Qué revisa"],
+            "filas": [
+              ["Diaria", "Al inicio de la jornada, de forma aleatoria", "Carrocería, imagen, aseo, frenos, dirección, luces y llantas"],
+              ["Periódica", "Una vez al año, junto con la revisión técnico-mecánica", "Lo que el CDA no cubre: imagen del sistema, componentes y el formato de inspección"],
+              ["De vinculación", "Antes de entrar al servicio", "Cumplimiento de especificaciones y registro legal, técnico y ambiental"],
+              ["Extraordinaria", "Cuando TRANSMILENIO la programe", "Controles específicos; puede pedir aislar y sellar el bus"]
+            ]
+          }
+        ],
+        "puntos": [
+          "La revisión técnico-mecánica sigue la NTC 5375 y se hace en un Centro de Diagnóstico Automotor (CDA) autorizado. En buses nuevos de servicio público es obligatoria a los 2 años de la matrícula y luego cada año.",
+          "Al cumplir un año de vinculación se exige una revisión preventiva en CDA con los mismos ítems de la técnico-mecánica.",
+          "El concesionario debe poner en su patio la infraestructura necesaria (cárcamos, rampas, elevadores, sitio cubierto) y personal técnico si la inspección lo pide.",
+          "Los hallazgos se reportan al concesionario por la herramienta tecnológica y se atienden en los plazos del Capítulo 11. Si ponen en riesgo a los usuarios, el bus se inmoviliza.",
+          "Estándar de aseo para salir a operar: exterior sin grafitis, vidrios, sillas, pasamanos, piso, tableros y puesto del operador limpios y secos, con cinturón del operador funcional."
+        ]
+      },
+      {
+        "id": "inmovilizacion",
+        "titulo": "Inmovilización de vehículos",
+        "capitulo": "Capítulo 3, numeral 3.5",
+        "paginas": "24–25",
+        "puntos": [
+          "Se inmoviliza un bus cuando está varado (incluye quedarse sin combustible), cuando la documentación está incompleta o vencida, cuando una inspección detecta fallas que ponen en riesgo la seguridad, cuando fue vandalizado y en los casos del Capítulo 11.",
+          "La revisión de la novedad toma máximo 5 días calendario desde que el bus esté en el patio. Si no se verifica en ese lapso, el concesionario puede repararlo, salvo medida de autoridad judicial.",
+          "Solo TRANSMILENIO o quien designe puede pasar el bus a «Vehículo operativo», después de revisar la corrección.",
+          "TRANSMILENIO puede pedir aislar y sellar el bus para que nadie lo intervenga hasta la inspección.",
+          "El procedimiento completo está en el Apéndice 4: «Procedimiento de inspección, inmovilización y habilitación de flota zonal»."
+        ],
+        "alerta": "Antes de que venza cada plazo, sube la evidencia de la corrección por el sistema que indique TRANSMILENIO. Las fotos deben mostrar fecha y hora."
+      },
+      {
+        "id": "mantenimiento",
+        "titulo": "Mantenimiento e historial del bus",
+        "capitulo": "Capítulo 3, numerales 3.6 y 3.7; Capítulo 6, numeral 6.4",
+        "paginas": "25–26, 63–64",
+        "puntos": [
+          "Cada concesionario debe tener un plan de mantenimiento preventivo y correctivo propio, apoyado en los manuales y periodicidades del fabricante.",
+          "Debe usar un software de mantenimiento que permita controlar la información y generar informes con rapidez. TRANSMILENIO puede verificarla en cualquier momento.",
+          "La hoja de vida mínima incluye: placa, número interno SITP, kilometraje, marca de chasis y carrocería, motor y cilindraje, número de chasis, modelo, copia y vigencia de documentos (SOAT, seguro de responsabilidad civil, tarjeta de operación, revisión técnico-mecánica, licencia de tránsito) y el registro detallado de cada intervención preventiva y correctiva.",
+          "El concesionario capacita y actualiza a su personal técnico y exige calidad a sus proveedores. Subcontratar el mantenimiento no lo exime de responsabilidad.",
+          "No se permite parquear ni reparar buses sobre la vía pública."
+        ]
+      },
+      {
+        "id": "contingencias",
+        "titulo": "Falla en la vía y kit de contingencias",
+        "capitulo": "Capítulo 3, numeral 3.8; Capítulo 11, numeral 11.4",
+        "paginas": "27–28, 141",
+        "tablas": [
+          {
+            "titulo": "Tiempo máximo para retirar un bus detenido (código I5025)",
+            "columnas": ["Distancia desde el patio de origen", "Tiempo de reacción"],
+            "filas": [
+              ["Hasta 20 km", "1 hora"],
+              ["Hasta 40 km", "2 horas"],
+              ["Más de 40 km", "3 horas"]
+            ]
+          }
+        ],
+        "puntos": [
+          "Kit obligatorio en cada bus: 2 triángulos reflectivos (o lámparas amarillas intermitentes), 2 tacos, linterna y botiquín (gasas, venda elástica, tela adhesiva, curas, bajalenguas, tijeras punta roma, guantes, copitos y suero fisiológico).",
+          "La asistencia en vía cubre cambio de llanta, reinicio de batería, diagnóstico primario y habilitar el bus para remolcarlo al patio-taller.",
+          "Las fallas del sistema de frenos o de dirección nunca se reparan en la vía: el bus va en grúa al patio-taller.",
+          "Toda asistencia se gestiona desde el Centro de Control y la autoriza TRANSMILENIO. El bus se orilla a la derecha y se señaliza con los triángulos.",
+          "Vehículos de asistencia permitidos: grúa percha, grúa de arrastre (underlift), camabaja, carro taller y moto asistencia, con personal calificado, uniformado e identificado."
+        ]
+      },
+      {
+        "id": "infracciones",
+        "titulo": "Infracciones de vehículo: plazos y puntos",
+        "capitulo": "Capítulo 11, numeral 11.2",
+        "paginas": "122–128",
+        "puntos": [
+          "Tipo 3 (impacto alto): inmoviliza el bus e inicia el proceso de puntos de inmediato. Tipo 2 (impacto medio): se da plazo de corrección y, según gravedad, puede inmovilizar. Tipo 1 (impacto bajo): se da plazo y, si vence sin corregir, se aplican puntos.",
+          "El plazo se cuenta en días calendario, desde el día siguiente a la notificación del hallazgo (por acta, correo o sistema).",
+          "Si corriges dentro del plazo y subes la evidencia, no se aplican puntos. Una columna de plazo en 0 significa que no hay margen de corrección."
+        ],
+        "tablas": [
+          {
+            "titulo": "Tipo 3 · 30 puntos",
+            "columnas": ["Código", "Hallazgo", "Puntos", "Plazo (días)", "Inmoviliza"],
+            "filas": [
+              ["I5003-1", "Elementos faltantes, rotos o con mal funcionamiento en carrocería, chasís o sistemas (frenos, dirección, suspensión, eléctrico, tren motriz, refrigeración, escape) que dejan el bus inoperante", "30", "30", "Sí"],
+              ["I5003-3", "Testigos rojos de parada, manómetro o su alarma dañados, caja de fusibles suelta o desprotegida", "30", "5", "Sí"],
+              ["I5013", "Sillas del operador o de usuarios dañadas o sin anclaje; cinturones de seguridad faltantes o dañados", "30", "0", "Sí"],
+              ["I5014", "Pasamanos sueltos o con aristas; vidrios rotos, fisurados o que distorsionan la visión", "30", "1", "Sí"],
+              ["I5016", "Extintores vencidos, sin carga o ausentes; sistema de extinción, martillos o salidas de emergencia en mal estado", "30", "1", "Sí"],
+              ["I5017", "Puertas, escotillas de emergencia o señales de apertura y cierre con mal funcionamiento", "30", "1", "Sí"],
+              ["I5018", "Llantas sin el labrado mínimo o con reencauche defectuoso", "30", "1", "Sí"],
+              ["I5022", "Fugas de combustible, lubricantes o fluidos", "30", "0", "Sí"],
+              ["I5023", "Desempañante o limpiaparabrisas faltante o dañado", "30", "0", "Sí"],
+              ["I5028", "Sin kit de contingencias o botiquín, o incompletos o en mal estado", "30", "0", "Sí"],
+              ["I5029", "Emisiones o ruido por encima de la norma ambiental", "30", "0", "Sí"]
+            ]
+          },
+          {
+            "titulo": "Tipo 2 · 15 puntos",
+            "columnas": ["Código", "Hallazgo", "Puntos", "Plazo (días)", "Inmoviliza"],
+            "filas": [
+              ["I8017", "Dispositivo de ascenso y descenso para personas con discapacidad dañado o sin mando", "15", "1", "Sí"],
+              ["I5027", "Equipos de abordo SIRCI faltantes, sueltos o dañados", "15", "15", "Sí"],
+              ["I5027-1", "Equipo ITS (no SIRCI) ausente o dañado; aplica a contratos de Unidades Funcionales", "15", "5", "No"],
+              ["I5012-1", "Luces frontales, direccionales, de freno, de reversa, de estacionamiento o alarma de reversa", "15", "3", "Sí"]
+            ]
+          },
+          {
+            "titulo": "Tipo 1 · 10 puntos",
+            "columnas": ["Código", "Hallazgo", "Puntos", "Plazo (días)", "Inmoviliza"],
+            "filas": [
+              ["I5003-2", "Rayones, abolladuras o piezas en mal estado con deterioro leve de imagen", "10", "10", "No"],
+              ["I5003-4", "Testigos amarillos o naranja; fallas en tablero, consola o multiplexo", "10", "2", "No"],
+              ["I5005", "Ruteros frontales, laterales o traseros ilegibles, mal instalados o mal programados", "10", "3", "No"],
+              ["I5006", "Bus sucio al inicio de la jornada o con plagas", "10", "0", "No"],
+              ["I5007", "Pintura, logos, placas, adhesivos o señalética deteriorados o modificados", "10", "5", "No"],
+              ["I5008", "Propaganda no autorizada, o autorizada en mal estado", "10", "2", "No"],
+              ["I5012-2", "Luces internas, de placa o catadióptricos con falla", "10", "3", "No"],
+              ["I5013-1", "Grafitis o manchas en el interior o el exterior", "10", "5", "No"],
+              ["I5001", "Aditamentos decorativos que no instaló el fabricante", "10", "2", "No"]
+            ]
+          }
+        ]
+      },
+      {
+        "id": "conductores",
+        "titulo": "Conductores y tarjeta de conducción",
+        "capitulo": "Capítulo 4",
+        "paginas": "29–36",
+        "puntos": [
+          "Todo conductor necesita la tarjeta de conducción del sistema, personal e intransferible. Conducir con la tarjeta de otro o con un código distinto al asignado es falta grave.",
+          "Requisitos: mínimo 18 años, evaluación de aptitudes físicas, mentales y de coordinación motriz, y para alimentadores 3 años de experiencia (1 año si es promoción desde otro servicio del sistema).",
+          "La capacitación de ingreso vale 1 año y se renueva cada año. Se aceptan cursos tomados en los 4 meses anteriores al vencimiento, y se exige el 100 % de los módulos.",
+          "La vigencia de la tarjeta depende de la licencia de conducción de servicio público.",
+          "Un conductor puede manejar tipologías menores a la suya, pero no mayores (por ejemplo, uno de padrón dual no puede conducir articulados).",
+          "Estados de la tarjeta: recapacitación (sesión de seguridad vial dentro del mes siguiente; si no, pasa a inoperabilidad), inoperabilidad, suspensión y cancelación. Más de 60 días en inoperabilidad puede terminar en cancelación o suspensión de hasta 24 meses."
+        ]
+      },
+      {
+        "id": "programacion",
+        "titulo": "Programación de servicios y kilometraje",
+        "capitulo": "Capítulos 5 y 6",
+        "paginas": "37–75",
+        "puntos": [
+          "El Programa de Servicios de Operación No Troncal (PSONT) se presenta cada bimestre, con estudios de oferta y demanda. TRANSMILENIO lo revisa y puede objetarlo.",
+          "Meta de ocupación: más de 90 % en hora pico y máximo 80 % en hora valle en los tramos más cargados. Tipologías: padrón de 80 pasajeros, busetón de 50, buseta de 40 y microbús de 19 (sin pasajeros de pie).",
+          "El kilometraje se liquida viaje por viaje. Cada viaje debe iniciarse con el banderazo a bordo (tecla F2) y quedar registrado en el SAE (ReportSAE y GestSAE).",
+          "Kilómetros no ejecutados: los suprimidos por regulación, recorridos fuera del trazado o viajes incompletos. Kilómetros adicionales: solo con autorización previa de TRANSMILENIO.",
+          "Si se reemplaza un bus por uno de menor capacidad se paga la tipología ejecutada. Si es de mayor capacidad se paga la programada. Todo cambio debe ser por un bus de igual o mayor capacidad.",
+          "Los desvíos sin autorización solo se remuneran por los kilómetros dentro de la ruta establecida.",
+          "El concesionario debe reportar los kilómetros que dejó de realizar, aunque TRANSMILENIO no los haya detectado."
+        ]
+      },
+      {
+        "id": "seguridad",
+        "titulo": "Seguridad vial y conductas (puntos ICO)",
+        "capitulo": "Capítulo 7 y Capítulo 11, numeral 11.3",
+        "paginas": "76–88, 128–140",
+        "puntos": [
+          "El factor humano es la principal causa de accidentes, por eso el sistema promueve el Manejo Preventivo. Los estándares están en el Manual del Operador del Bus Zonal (Apéndice 3).",
+          "Controles: embriaguez (alcohólica y no alcohólica), velocidad, punto fijo y funciones del SIRCI.",
+          "Tras un accidente o una conducta contraria a la seguridad vial, el conductor asiste a una sesión de prevención dentro del mes calendario siguiente. Si no hay soporte de asistencia, la tarjeta pasa a inoperabilidad (se aplica los viernes al cumplirse el mes).",
+          "Conductas de 30 puntos ICO: exhibir o usar armas, agredir a usuarios o funcionarios, pasar un semáforo en rojo (I6024), operar con un código distinto al asignado (I6034) y presentarse en estado de embriaguez (I8013).",
+          "Conductas de 10 puntos ICO (Tipo 1 de supervisión y operación): abandonar el bus 15 minutos o más sin razón (I6016), mala aproximación a plataformas o paraderos (I6025), permitir vendedores a bordo (I8001) y errores de programación del sistema de control de flota (I8019).",
+          "Las jornadas deben respetar la normativa laboral; se debe evitar programar tablas que terminan tarde en la noche y la mañana siguiente inician la operación.",
+          "Los concesionarios deben tener planes de emergencia y contingencia para la operación y las instalaciones, alineados con el Decreto 579 de 2015."
+        ]
+      },
+      {
+        "id": "sirci",
+        "titulo": "Fallas de equipos SIRCI a bordo",
+        "capitulo": "Capítulo 8",
+        "paginas": "89–95",
+        "puntos": [
+          "El SIRCI (recaudo, control de flota e información) tiene equipos a bordo como la unidad lógica, el validador y el torniquete. Su arreglo corresponde al concesionario del SIRCI; el de operación reporta la novedad.",
+          "Ante una falla: reiniciar la unidad lógica y el validador. Si persiste, llevar a los usuarios presentes hasta el final de ruta sin recoger más y abrir un ticket en la Mesa de Ayuda.",
+          "Con el bus vacío y con autorización de TRANSMILENIO, se desplaza al patio. Allí se verifica la solución del técnico del SIRCI antes de cerrar el ticket.",
+          "El operador tiene 48 horas para devolver un ticket que no esté conforme; pasado ese tiempo se cierra automáticamente.",
+          "Se genera el reporte de tabla eliminada en el SAE con la causa y el número de caso de la mesa de ayuda."
+        ]
+      },
+      {
+        "id": "ambiental",
+        "titulo": "Emisiones y gestión ambiental",
+        "capitulo": "Capítulo 10",
+        "paginas": "108–120",
+        "puntos": [
+          "La flota debe cumplir siempre los niveles máximos de emisiones de la norma ambiental, estar vinculada al Programa de Autorregulación Ambiental y mantener funcionando los sistemas de control de emisiones.",
+          "Un rechazo en pruebas de emisiones de la autoridad ambiental puede terminar en la inmovilización del bus. TRANSMILENIO también puede pedir pruebas adicionales en cualquier momento.",
+          "Para flota eléctrica, el concesionario aplica el plan inicial de aclimatación y el plan de seguimiento permanente, y reporta la eficiencia energética (autonomía y regeneración) dentro de los primeros 10 días calendario de cada mes.",
+          "Los patios deben tener un Plan de Gestión Ambiental con análisis de aspectos e impactos, medidas de manejo y plan de contingencias."
+        ]
+      },
+      {
+        "id": "otros",
+        "titulo": "Paraderos, patios y ausencia de concesionario",
+        "capitulo": "Capítulos 9 y 12",
+        "paginas": "96–107, 144–147",
+        "puntos": [
+          "Los paraderos son puntos de parada fijos con señalización y mobiliario definidos; el manual regula su identificación, interdistancias y criterios de ubicación.",
+          "Los patios y garajes son las áreas de soporte técnico: allí se estacionan los buses y se instalan los equipos, la maquinaria y la herramienta para el mantenimiento.",
+          "Si un concesionario deja de operar, TRANSMILENIO activa el Protocolo T-DB-003: reacción inmediata (aviso con menos de 2 semanas), recuperación (más de 2 semanas) o estabilización (más de 6 meses). Puede tomar el control de la operación."
+        ]
+      }
+    ],
+    "aviso": "Resumen elaborado a partir del PDF M-DB-003 versión 3 (junio de 2021). Para decisiones sancionatorias o disputas de puntos, consulta el manual completo y sus apéndices vigentes."
+  }
+}
