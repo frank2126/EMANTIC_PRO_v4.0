@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from config import settings
 from database import (
     DpvRegistroDB, IcoRegistroDB, DisponibilidadDB, DpvMensualDB, CargaHistorialDB,
 )
@@ -64,7 +65,10 @@ def to_dt(v: Any) -> Optional[datetime]:
         except Exception:
             return None
     s = str(v).strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
+                # ISO 8601 con "T" (algunas celdas del Excel llegan como texto, p. ej. 2026-09-21T14:30:00)
+                "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S.%f",
+                "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
                 "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%m/%d/%Y"):
         try:
             return datetime.strptime(s, fmt)
@@ -109,6 +113,28 @@ def to_float(v: Any) -> float:
         return 0.0
 
 
+def fix_mojibake(s: Any) -> Any:
+    """Repara texto con doble codificación UTF-8 (p. ej. 'cÃ³digo' → 'código', 'seÃ±al' → 'señal').
+
+    Cada carácter se convierte de vuelta al byte original (latin-1 / cp1252) y el resultado se
+    decodifica como UTF-8. Si el texto no tiene ese problema (o no se puede revertir de forma
+    exacta) se devuelve tal cual, por lo que es seguro e idempotente.
+    """
+    if not isinstance(s, str) or s.isascii():
+        return s
+    try:
+        raw = bytearray()
+        for ch in s:
+            o = ord(ch)
+            if o < 256:
+                raw.append(o)
+            else:
+                raw.extend(ch.encode("cp1252"))
+        return raw.decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
+
 def to_str(v: Any, maxlen: Optional[int] = None) -> str:
     if v is None:
         return ""
@@ -117,7 +143,9 @@ def to_str(v: Any, maxlen: Optional[int] = None) -> str:
     elif isinstance(v, datetime):
         s = v.isoformat(sep=" ")
     else:
-        s = str(v).strip()
+        # Reparar ANTES de strip(): un espacio de no separación (NBSP) final llega como "Â\xa0" y
+        # strip() se llevaría el \xa0 dejando el "Â" huérfano, lo que impediría la reparación.
+        s = fix_mojibake(str(v)).strip()
     return s[:maxlen] if maxlen else s
 
 
@@ -293,41 +321,16 @@ async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db)
                for r in registros[:10]]
     return respuesta(total, ins, upd, errores, seg, {"preview": preview})
 
-# Columnas que realmente usa el dashboard (evita enviar descripcion_novedad, created_at, etc.)
-DPV_SLIM = ("id", "dpv_id", "estado", "empresa", "placa", "movil", "tipologia",
-            "fecha_inmovilizacion", "hora", "causa_inmovilizacion", "ruta",
-            "operador", "dia_semana", "alerta", "franja_horaria")
-
 
 @router.get("/dpv")
 def listar_dpv(limit: int = Query(100, ge=1, le=100000), offset: int = Query(0, ge=0),
-               mes: Optional[str] = None, slim: bool = False,
                db: Session = Depends(get_db), user: Dict = Depends(get_current_user)):
     q = db.query(DpvRegistroDB)
-
-    # Filtro por mes ('YYYY-MM'): usa to_mes(), que ya entiende ese formato
-    if mes:
-        d = to_mes(mes)
-        if d:
-            fin = datetime(d.year + (1 if d.month == 12 else 0), d.month % 12 + 1, 1)
-            q = q.filter(DpvRegistroDB.fecha_inmovilizacion >= d,
-                         DpvRegistroDB.fecha_inmovilizacion < fin)
-
     total = q.count()
-    orden = (DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc())
+    items = q.order_by(DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc()) \
+             .offset(offset).limit(limit).all()
+    return {"total": total, "items": [row_to_dict(i) for i in items]}
 
-    if slim:
-        cols = [getattr(DpvRegistroDB, c) for c in DPV_SLIM]
-        filas = q.with_entities(*cols).order_by(*orden).offset(offset).limit(limit).all()
-        items = [
-            {c: (v.isoformat() if isinstance(v, (datetime, date)) else v)
-             for c, v in zip(DPV_SLIM, f)}
-            for f in filas
-        ]
-    else:
-        items = [row_to_dict(i) for i in q.order_by(*orden).offset(offset).limit(limit).all()]
-
-    return {"total": total, "items": items}
 
 # ═══════════════════════════════════════════════════════════
 #  ICO
@@ -371,6 +374,10 @@ async def upload_ico(file: UploadFile = File(...), db: Session = Depends(get_db)
                 r[campo] = to_dt(v)
             elif campo == "id_novedad":
                 r[campo] = to_int(v, None)
+            elif campo == "puntos":
+                # Entero normalizado ("10", no "10.0"). Vacío = sin puntos asignados (no es 0).
+                p = to_int(v, None)
+                r[campo] = "" if p is None else str(p)
             else:
                 r[campo] = to_str(v, ICO_LEN.get(campo))
         registros.append(r)
@@ -385,6 +392,16 @@ async def upload_ico(file: UploadFile = File(...), db: Session = Depends(get_db)
     seg = time.time() - t0
     registrar_historial(db, "ico", user, file.filename, total, ins, upd, len(errores), seg, "\n".join(errores[:50]))
     return respuesta(total, ins, upd, errores, seg)
+
+
+def tipo_infraccion(tipo_novedad: Optional[str]) -> str:
+    """Clasificación de la infracción (columna calculada del Power BI).
+
+    "Directo" para los códigos configurados en ICO_CODIGOS_DIRECTO (por defecto I5006, I5013,
+    I5022 e I5023); cualquier otro código es "Hallazgo Rechazado".
+    """
+    codigo = (tipo_novedad or "").strip().upper()
+    return "Directo" if codigo in settings.ico_codigos_directo else "Hallazgo Rechazado"
 
 
 def _filtrar_ico(q, fecha_desde, fecha_hasta, empresa, tipo_novedad, estado, placa):
@@ -444,6 +461,9 @@ def listar_ico(limit: int = Query(50, ge=1, le=100000), offset: int = Query(0, g
         d = row_to_dict(i)
         d["fecha_novedad"] = i.fecha_novedad.strftime("%Y-%m-%d") if i.fecha_novedad else ""
         d["hora"] = i.fecha_novedad.strftime("%H:%M:%S") if i.fecha_novedad else ""
+        # Puntos como número (los registros viejos se guardaron como "10.0"); None = sin puntos.
+        d["puntos"] = to_int(i.puntos, None)
+        d["tipo_infraccion"] = tipo_infraccion(i.tipo_novedad)
         out.append(d)
     return {"total": total, "items": out}
 

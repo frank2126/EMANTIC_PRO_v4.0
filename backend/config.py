@@ -66,6 +66,15 @@ class Settings:
     default_page_size: int = int(os.getenv("DEFAULT_PAGE_SIZE", "20"))
     max_page_size: int = int(os.getenv("MAX_PAGE_SIZE", "100"))
     
+    # ── ICO ────────────────────────────────────────────────
+    # Códigos de TIPO NOVEDAD que se clasifican como infracción "Directo".
+    # El resto se clasifica como "Hallazgo Rechazado" (misma regla del Power BI).
+    ico_codigos_directo: List[str] = [
+        c.strip().upper()
+        for c in os.getenv("ICO_CODIGOS_DIRECTO", "I5006,I5013,I5022,I5023").split(",")
+        if c.strip()
+    ]
+
     # ── LOGGING ────────────────────────────────────────────
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     log_file: str = os.getenv("LOG_FILE", "logs/emantix.log")

@@ -1,6 +1,11 @@
-// dashboardStore.js — carga en dos fases (mes en curso primero, resto en segundo plano)
+// dashboardStore.js — VERSION DEFINITIVA CORREGIDA + DPV MENSUAL
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import {
+  DIM, SELECCION_VACIA, aplicarSlicers, aplicarSeleccion, haySeleccion, ranking, dona, heatmap,
+  chipsSeleccion, normTipologia, ufDeRegistro, tipoInfraccionLocal, diasParaResponder, hoyISO,
+  ESTADO_PENDIENTE,
+} from './icoUtils.js'
 
 function normDPV(r) {
   return {
@@ -11,8 +16,7 @@ function normDPV(r) {
     placa:                (r.placa  || '').trim(),
     movil:                (r.movil  || '').trim(),
     causa_inmovilizacion: (r.causa  || r.causa_inmovilizacion || '').trim(),
-    descripcion:          (r.descripcion || r.descripcion_novedad || '').trim(),
-    operador:             (r.operador || '').trim(),
+    descripcion:          (r.descripcion || '').trim(),
     fecha:                (r.fecha || r.fecha_inmovilizacion || '').slice(0, 10),
     hora:                 (r.hora  || '').slice(0, 8),
     tipologia:            (r.tipologia || '').trim().toUpperCase(),
@@ -29,27 +33,51 @@ function normDPV(r) {
 }
 
 function normICO(r) {
+  const empresa = (r.empresa || '').trim()
+  const movil   = (r.movil  || '').trim()
+  const tipo    = (r.tipo_novedad || '').trim()
+  const fechaNovedad = (r.fecha_novedad || '').slice(0, 10)
   return {
     id:           r.id,
     ico_id:       r.ico_id,
     estado:       (r.estado || '').trim(),
-    empresa:      (r.empresa || '').trim(),
+    empresa,
+    uf:           ufDeRegistro(empresa, movil),            // 'UF10' | 'UF16' | ''
     placa:        (r.placa  || '').trim(),
-    movil:        (r.movil  || '').trim(),
-    tipo_novedad: (r.tipo_novedad || '').trim(),
-    fecha_novedad:(r.fecha_novedad || '').slice(0, 10),
+    movil,
+    tipo_novedad: tipo,
+    // Clasificación calculada en el backend; respaldo local si el backend es anterior a este cambio
+    tipo_infraccion: r.tipo_infraccion || tipoInfraccionLocal(tipo),
+    // Fecha base del tablero = F. IDENTIFICACION (igual que el Power BI); respaldo: F. NOVEDAD
+    fecha:        (r.fecha_identificacion || '').slice(0, 10) || fechaNovedad,
+    fecha_novedad: fechaNovedad,
+    fecha_notificacion: (r.fecha_notificacion || '').slice(0, 10),
+    fecha_cierre: (r.fecha_cierre || '').slice(0, 10),
     hora:         (r.hora || '').slice(0, 8),
-    tipologia:    (r.tipologia || '').trim().toUpperCase(),
-    puntos:       parseInt(r.puntos) || 0,
+    tipologia:    normTipologia(r.tipologia),               // 'PADRON' | 'BUSETON' (sin tildes)
+    puntos:       parseInt(r.puntos) || 0,                  // 0 = sin puntos asignados
     descripcion:  (r.descripcion || '').trim(),
+    direccion:    (r.direccion || '').trim(),
+    dia_semana:   (r.dia_semana || '').trim(),
     area:         (r.area || '').trim(),
   }
 }
 
-// Mes en curso en formato 'YYYY-MM' (hora local, no UTC)
-function mesActual() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+const filtrosICOVacios = () => ({
+  uf: [],               // ['UF10', 'UF16']
+  anio: '',             // '2026'; '' = todos los años
+  meses: [],            // [9] → solo septiembre; [] = todos los meses (requiere año)
+  tipo_infraccion: [],  // ['Directo', 'Hallazgo Rechazado']
+  tipologia: [],        // ['PADRON', 'BUSETON']
+  estado: '',
+  busqueda: '',         // móvil o placa
+})
+
+// Agrega o quita `v` de la lista (la modifica en su lugar)
+function alternar(lista, v) {
+  const i = lista.indexOf(v)
+  if (i > -1) lista.splice(i, 1)
+  else lista.push(v)
 }
 
 export const useDashboardStore = defineStore('dashboard', {
@@ -60,10 +88,19 @@ export const useDashboardStore = defineStore('dashboard', {
     error:   null,
     lastSync: null,
 
-    // true cuando ya se descargó TODO el DPV (necesario para el % y el contador del tab)
-    dpvCompleto: false,
+    // en state():
+disponibilidad: { e10: null, e16: null },
 
-    disponibilidad: { e10: null, e16: null },
+// en actions:
+async cargarDisponibilidad() {
+  try {
+    const { data } = await axios.get('/api/disponibilidad')
+    this.disponibilidad.e10 = data?.e10 || null
+    this.disponibilidad.e16 = data?.e16 || null
+  } catch (e) {
+    console.error('[Store] Error cargando disponibilidad:', e)
+  }
+},
 
     // ── DPV Mensual por Kilometraje ──────────────────────────
     dpvMensual: {
@@ -78,23 +115,19 @@ export const useDashboardStore = defineStore('dashboard', {
       uf:        [],
     },
 
-    icoFiltros: {
-      fecha_desde:  '',
-      fecha_hasta:  '',
-      empresa:      '',
-      tipo_novedad: '',
-      estado:       '',
-      busqueda:     '',
-    },
+    // ── ICO: slicers (filtros duros) y selección cruzada por clic en las gráficas ──
+    icoFiltros: filtrosICOVacios(),
+    icoSel:     SELECCION_VACIA(),
+    icoInicializado: false,   // true cuando ya se aplicó el mes más reciente como filtro inicial
   }),
 
   getters: {
 
-    dpvFiltrado(state) {
+      dpvFiltrado(state) {
       return state.dpvRaw.filter(r => {
-        if (state.dpvFiltros.mes && r.fecha.slice(0, 7) !== state.dpvFiltros.mes) return false
+      if (state.dpvFiltros.mes && r.fecha.slice(0, 7) !== state.dpvFiltros.mes) return false
 
-        if (state.dpvFiltros.franja.length > 0) {
+    if (state.dpvFiltros.franja.length > 0) {
           const f = r.franja
           const okAM = state.dpvFiltros.franja.includes('AM') && f === 'AM'
           const okPM = state.dpvFiltros.franja.includes('PM') && f === 'PM'
@@ -232,86 +265,109 @@ export const useDashboardStore = defineStore('dashboard', {
         .sort((a, b) => b.total - a.total)
     },
 
+    // ══════════════════════════════════════════════════════════
+    //  ICO — filtros duros (slicers) + selección cruzada estilo Power BI
+    //  Lógica pura en icoUtils.js
+    // ══════════════════════════════════════════════════════════
+
+    // Filas tras los slicers (Unidad, Año/Mes, Tipo de infracción, Tipología, Estado, Móvil/Placa)
+    icoBase(state) {
+      return aplicarSlicers(state.icoRaw, state.icoFiltros)
+    },
+
+    // Filas tras slicers + selección cruzada: alimenta KPIs y tabla de detalle
     icoFiltrado(state) {
-      return state.icoRaw.filter(r => {
-        if (state.icoFiltros.fecha_desde && r.fecha_novedad < state.icoFiltros.fecha_desde) return false
-        if (state.icoFiltros.fecha_hasta && r.fecha_novedad > state.icoFiltros.fecha_hasta) return false
-        if (state.icoFiltros.empresa      && r.empresa      !== state.icoFiltros.empresa)      return false
-        if (state.icoFiltros.tipo_novedad && r.tipo_novedad !== state.icoFiltros.tipo_novedad) return false
-        if (state.icoFiltros.estado       && r.estado       !== state.icoFiltros.estado)       return false
-        if (state.icoFiltros.busqueda) {
-          const q = state.icoFiltros.busqueda.toLowerCase()
-          if (!r.movil.toLowerCase().includes(q) && !r.placa.toLowerCase().includes(q)) return false
-        }
-        return true
-      })
+      return aplicarSeleccion(this.icoBase, state.icoSel)
+    },
+
+    icoHaySeleccion(state) {
+      return haySeleccion(state.icoSel)
+    },
+
+    icoChips(state) {
+      return chipsSeleccion(state.icoSel)
     },
 
     icoKPIs() {
       const data = this.icoFiltrado
+      const hoy = hoyISO()
+      const moviles = new Set()
+      const codigos = new Set()
+      let puntos = 0
+      let sinContestar = 0
+      let ventanaAbierta = 0
+      for (const r of data) {
+        puntos += r.puntos
+        if (r.movil || r.placa) moviles.add(r.movil || r.placa)
+        if (r.tipo_novedad) codigos.add(r.tipo_novedad)
+        if (r.estado === ESTADO_PENDIENTE) {
+          sinContestar++
+          if (diasParaResponder(r, hoy) !== null) ventanaAbierta++
+        }
+      }
       return {
-        total:     data.length,
-        puntos:    data.reduce((s, r) => s + r.puntos, 0),
-        tipos:     new Set(data.map(r => r.tipo_novedad).filter(Boolean)).size,
-        placas:    new Set(data.map(r => r.movil || r.placa).filter(Boolean)).size,
-        aceptados: data.filter(r => r.estado.toLowerCase().includes('acept')).length,
+        total: data.length,
+        puntos,
+        moviles: moviles.size,
+        tipos: codigos.size,
+        sinContestar,
+        ventanaAbierta,        // "No Contestado" cuya F. CIERRE DPV aún no vence
+        baseTotal: this.icoBase.length,
+        baseTotalPuntos: this.icoBase.reduce((s, r) => s + r.puntos, 0),
       }
     },
 
-    icoDona() {
-      const counts = { PADRÓN: 0, BUSETON: 0 }
-      this.icoFiltrado.forEach(r => {
-        if (r.tipologia.includes('PAD')) counts['PADRÓN']++
-        else counts['BUSETON']++
-      })
-      const total = this.icoFiltrado.length || 1
-      const CIRC  = 2 * Math.PI * 52
-      let offset  = 0
-      return [
-        { label: 'PADRÓN',  color: '#084534', total: counts['PADRÓN'] },
-        { label: 'BUSETON', color: '#60b566', total: counts['BUSETON'] },
-      ].map(seg => {
-        const dash = (seg.total / total) * CIRC
-        const out  = { ...seg, pct: Math.round(seg.total/total*100), dash, gap: CIRC-dash, offset }
-        offset += dash
-        return out
-      })
+    // Cada visual excluye SU PROPIA dimensión de la selección para mostrar todas sus categorías
+    // (con las seleccionadas resaltadas) y aplica el resto de selecciones.
+    icoHeatmap(state) {
+      return heatmap(aplicarSeleccion(this.icoBase, state.icoSel, 'periodos'), state.icoFiltros, state.icoSel.periodos)
     },
 
-    icoHeatmap() {
-      const arr = Array(24).fill(0)
-      this.icoFiltrado.forEach(r => {
-        if (r.hora) {
-          const h = parseInt(r.hora.split(':')[0], 10)
-          if (!isNaN(h) && h >= 0 && h < 24) arr[h]++
-        }
-      })
-      return arr
+    icoDona(state) {
+      return dona(aplicarSeleccion(this.icoBase, state.icoSel, 'tipologia'), state.icoSel.tipologia)
     },
 
-    icoTipoNovedad() {
-      const map = {}
-      this.icoFiltrado.forEach(r => { const v=r.tipo_novedad||'S/D'; map[v]=(map[v]||0)+1 })
-      return Object.entries(map).map(([k,total])=>({tipo_novedad:k,total})).sort((a,b)=>b.total-a.total)
+    icoTipoNovedad(state) {
+      return ranking(aplicarSeleccion(this.icoBase, state.icoSel, 'tipo_novedad'), DIM.tipo_novedad,
+        { seleccion: state.icoSel.tipo_novedad })
     },
 
-    icoTipoInfraccion() {
-      const map = {}
-      this.icoFiltrado.forEach(r => { const v=r.estado||'S/D'; map[v]=(map[v]||0)+1 })
-      return Object.entries(map).map(([k,total])=>({estado:k,total})).sort((a,b)=>b.total-a.total)
+    icoTipoInfraccion(state) {
+      return ranking(aplicarSeleccion(this.icoBase, state.icoSel, 'tipo_infraccion'), DIM.tipo_infraccion,
+        { seleccion: state.icoSel.tipo_infraccion })
     },
 
-    icoTopPlacas() {
-      const map = {}
-      this.icoFiltrado.forEach(r => { const v=r.movil||r.placa||'S/M'; map[v]=(map[v]||0)+1 })
-      return Object.entries(map).map(([k,total])=>({placa:k,total})).sort((a,b)=>b.total-a.total)
+    icoEstados(state) {
+      return ranking(aplicarSeleccion(this.icoBase, state.icoSel, 'estado'), DIM.estado,
+        { seleccion: state.icoSel.estado })
     },
 
+    icoTopMoviles(state) {
+      return ranking(aplicarSeleccion(this.icoBase, state.icoSel, 'movil'), DIM.movil,
+        { seleccion: state.icoSel.movil })
+    },
+
+    // Opciones de los slicers a partir de los datos cargados
     icoOpciones(state) {
+      const anios = new Set()
+      const meses = {}
+      const estados = new Set()
+      for (const r of state.icoRaw) {
+        if (r.fecha) {
+          const y = r.fecha.slice(0, 4)
+          const m = parseInt(r.fecha.slice(5, 7), 10)
+          anios.add(y)
+          if (!meses[y]) meses[y] = new Set()
+          meses[y].add(m)
+        }
+        if (r.estado) estados.add(r.estado)
+      }
+      const mesesPorAnio = {}
+      for (const y of Object.keys(meses)) mesesPorAnio[y] = [...meses[y]].sort((a, b) => a - b)
       return {
-        empresas: [...new Set(state.icoRaw.map(r=>r.empresa).filter(Boolean))].sort(),
-        tipos:    [...new Set(state.icoRaw.map(r=>r.tipo_novedad).filter(Boolean))].sort(),
-        estados:  [...new Set(state.icoRaw.map(r=>r.estado).filter(Boolean))].sort(),
+        anios: [...anios].sort().reverse(),
+        mesesPorAnio,
+        estados: [...estados].sort(),
       }
     },
   },
@@ -339,65 +395,111 @@ export const useDashboardStore = defineStore('dashboard', {
       this.dpvFiltros = { franja: [], mes: '', tipologia: [], uf: [] }
     },
 
-    resetFiltrosICO() {
-      this.icoFiltros = { fecha_desde:'', fecha_hasta:'', empresa:'', tipo_novedad:'', estado:'', busqueda:'' }
+    // ── ICO: slicers ─────────────────────────────────────────
+    // Cambiar un slicer limpia la selección cruzada (las claves de día/mes pueden dejar de existir).
+
+    toggleUFICO(uf) {
+      alternar(this.icoFiltros.uf, uf)
+      this.limpiarSelICO()
     },
 
-    // ── FASE 1: solo el mes que se está viendo (rápido) ──────────────
+    setAnioICO(anio) {
+      this.icoFiltros.anio = anio ? String(anio) : ''
+      // Al cambiar de año se conservan solo los meses que existan en ese año; sin año no hay meses
+      const disponibles = this.icoFiltros.anio ? (this.icoOpciones.mesesPorAnio[this.icoFiltros.anio] || []) : []
+      this.icoFiltros.meses = this.icoFiltros.meses.filter(m => disponibles.includes(m))
+      this.limpiarSelICO()
+    },
+
+    toggleMesICO(mes) {
+      if (!this.icoFiltros.anio) return
+      alternar(this.icoFiltros.meses, mes)
+      this.limpiarSelICO()
+    },
+
+    toggleTipoInfraccionICO(tipo) {
+      alternar(this.icoFiltros.tipo_infraccion, tipo)
+      this.limpiarSelICO()
+    },
+
+    toggleTipologiaICO(tipologia) {
+      alternar(this.icoFiltros.tipologia, tipologia)
+      this.limpiarSelICO()
+    },
+
+    setEstadoICO(estado) {
+      this.icoFiltros.estado = estado || ''
+      this.limpiarSelICO()
+    },
+
+    setBusquedaICO(texto) {
+      this.icoFiltros.busqueda = texto || ''
+      this.limpiarSelICO()
+    },
+
+    // "Limpiar": quita TODOS los filtros y selecciones (muestra todo el histórico)
+    resetFiltrosICO() {
+      this.icoFiltros = filtrosICOVacios()
+      this.limpiarSelICO()
+    },
+
+    // Filtro inicial = año y mes más recientes con datos (como abre el Power BI). Se aplica una sola vez.
+    aplicarPorDefectoICO() {
+      let ultima = ''
+      for (const r of this.icoRaw) if (r.fecha > ultima) ultima = r.fecha
+      if (!ultima) return
+      this.icoFiltros.anio  = ultima.slice(0, 4)
+      this.icoFiltros.meses = [parseInt(ultima.slice(5, 7), 10)]
+      this.icoInicializado  = true
+    },
+
+    // ── ICO: selección cruzada (clic en gráficas y tablas) ───────
+    // Clic simple: reemplaza la selección de esa visual (o la quita si ya era la única elegida).
+    // Ctrl / ⌘ / Shift + clic: suma o quita elementos. Entre visuales distintas las selecciones se combinan (Y).
+    toggleSelICO(dim, key, aditivo = false) {
+      const actual = this.icoSel[dim]
+      if (!actual) return
+      if (aditivo) {
+        alternar(actual, key)
+      } else {
+        this.icoSel[dim] = (actual.length === 1 && actual[0] === key) ? [] : [key]
+      }
+    },
+
+    quitarSelICO(dim, key) {
+      const actual = this.icoSel[dim]
+      if (actual) this.icoSel[dim] = actual.filter(k => k !== key)
+    },
+
+    limpiarSelICO() {
+      this.icoSel = SELECCION_VACIA()
+    },
+
     async cargarDatos() {
       this.loading = true
       this.error   = null
-      this.dpvCompleto = false
       try {
-        const mes = this.dpvFiltros.mes || mesActual()
-        const { data } = await axios.get('/api/dpv', {
-          params: { mes, slim: true, limit: 5000 },
-        })
-        this.dpvRaw   = (data?.items || []).map(normDPV)
+        const [resDPV, resICO] = await Promise.all([
+          axios.get('/api/dpv?limit=9999').catch(() => ({ data: { items: [] } })),
+          axios.get('/api/ico?limit=9999').catch(() => ({ data: { items: [] } })),
+        ])
+
+        const dpvItems = Array.isArray(resDPV.data) ? resDPV.data : (resDPV.data?.items || [])
+        const icoItems = Array.isArray(resICO.data) ? resICO.data : (resICO.data?.items || [])
+
+        this.dpvRaw  = dpvItems.map(normDPV)
+        this.icoRaw  = icoItems.map(normICO)
+        if (!this.icoInicializado) this.aplicarPorDefectoICO()
         this.lastSync = new Date().toLocaleString('es-CO')
+
+        // Carga en paralelo el DPV mensual (no bloquea si falla)
+        this.cargarDpvMensual()
+
       } catch (e) {
-        this.error = e.response?.data?.detail || e.message
-        console.error('[Store] Error cargando DPV:', e)
+        this.error = e.message
+        console.error('[Store] Error cargando datos:', e)
       } finally {
         this.loading = false
-      }
-
-      // ── FASE 2: en segundo plano, sin bloquear la pantalla ──
-      this.cargarDpvCompleto()
-      this.cargarIco()
-      this.cargarDpvMensual()
-      this.cargarDisponibilidad()
-    },
-
-    async cargarDpvCompleto() {
-      try {
-        const { data } = await axios.get('/api/dpv', {
-          params: { slim: true, limit: 20000 },
-        })
-        this.dpvRaw      = (data?.items || []).map(normDPV)
-        this.dpvCompleto = true
-      } catch (e) {
-        console.error('[Store] Error cargando DPV completo:', e)
-      }
-    },
-
-    async cargarIco() {
-      try {
-        const { data } = await axios.get('/api/ico', { params: { limit: 9999 } })
-        const items = Array.isArray(data) ? data : (data?.items || [])
-        this.icoRaw = items.map(normICO)
-      } catch (e) {
-        console.error('[Store] Error cargando ICO:', e)
-      }
-    },
-
-    async cargarDisponibilidad() {
-      try {
-        const { data } = await axios.get('/api/disponibilidad')
-        this.disponibilidad.e10 = data?.e10 || null
-        this.disponibilidad.e16 = data?.e16 || null
-      } catch (e) {
-        console.error('[Store] Error cargando disponibilidad:', e)
       }
     },
 
