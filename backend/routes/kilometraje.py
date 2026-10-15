@@ -16,6 +16,27 @@ from deps import get_current_admin_user, get_current_user, get_db
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kilometraje", tags=["kilometraje"])
 
+# Columnas nuevas de la intervención. Si tu database.py aún no las trae, se agregan al modelo aquí
+# y, si la tabla ya existía, se crean en SQL Server al iniciar (ALTER TABLE ... ADD, solo si faltan).
+from sqlalchemy import Column, String
+if not hasattr(ProgramacionMovilDB, "motivo"):
+    ProgramacionMovilDB.motivo = Column(String(300), default="")
+    ProgramacionMovilDB.orden_trabajo = Column(String(50), default="")
+
+def _migrar():
+    try:
+        from sqlalchemy import inspect, text
+        from database import engine
+        ins = inspect(engine)
+        if "programacion_moviles" not in ins.get_table_names(): return      # tabla nueva: create_all la crea completa
+        have = {c["name"] for c in ins.get_columns("programacion_moviles")}
+        with engine.begin() as cx:
+            for col, ddl in (("motivo", "VARCHAR(300)"), ("orden_trabajo", "VARCHAR(50)")):
+                if col not in have: cx.execute(text(f"ALTER TABLE programacion_moviles ADD {col} {ddl} NULL"))
+    except Exception as e:
+        logger.warning("No pude actualizar programacion_moviles; ejecuta a mano: ALTER TABLE programacion_moviles ADD motivo VARCHAR(300) NULL, orden_trabajo VARCHAR(50) NULL (%s)", e)
+_migrar()
+
 # Configuración. Se puede sobreescribir guardando JSON en app_config con key 'km_config'.
 CFG = {"prefijos": {"Z3240": "VW", "Z3241": "VW", "Z3440": "VW", "Z3270": "Scania", "Z3271": "Scania", "Z3470": "Scania", "Z3471": "Scania"},
        "paso": {"VW": 25000, "Scania": 10000},   # km entre hitos por grupo
@@ -34,6 +55,7 @@ def _who(u):
     g = (lambda k: u.get(k)) if isinstance(u, dict) else (lambda k: getattr(u, k, None))
     return str(g("username") or g("sub") or g("name") or "")
 def _norm(v): return re.sub(r"[^A-Z0-9]", "", str(v or "").upper())
+def _s(v): return str(int(v)) if isinstance(v, float) and v.is_integer() else str(v if v is not None else "").strip()
 def _grupo(mv, c): return c["prefijos"].get(mv[:5], "Sin clasificar")
 def _num(v):
     try: return float(str(v).replace(",", ".")) if v not in (None, "") else 0.0
@@ -131,7 +153,7 @@ def _flota(db, c, hz):
         al = [t for t, ok in (("sin dato", m["sd"] >= c["dias_sin_dato"]), ("salto odómetro", m["sal"] > 0), ("baja utilización", m["dd"] > 1 and m["kd"] < c["bajo_uso"])) if ok]
         out.append({"movil": mv, "grupo": g, "km_mes": round(m["km"], 1), "km_dia": round(w["kd"], 1), "odometro": round(odo, 1), "hito": hito,
                     "dias": None if dias is None else round(dias, 1), "estado": est, "programado": pr.fecha_programada if pr else "",
-                    "ultima": ints[-1].fecha_intervencion if ints else "", "alertas": ", ".join(al)})
+                    "ultima": ints[-1].fecha_intervencion if ints else "", "ultima_ot": (ints[-1].orden_trabajo or "") if ints else "", "ultima_motivo": (ints[-1].motivo or "") if ints else "", "alertas": ", ".join(al)})
     out.sort(key=lambda r: -r["km_mes"])
     for i, r in enumerate(out): r["pos"] = i + 1
     return hasta, out
@@ -141,11 +163,15 @@ def programacion(horizonte: int = 15, db: Session = Depends(get_db), user=Depend
     r = _flota(db, _cfg(db), horizonte)
     if not r: return {"fecha_corte": "", "resumen": {}, "moviles": [], "agenda": []}
     hasta, mv = r
-    ints = db.query(func.count(ProgramacionMovilDB.id)).filter(ProgramacionMovilDB.estado == "Intervenido", ProgramacionMovilDB.fecha_intervencion.like(hasta[:7] + "%")).scalar()
+    pv = db.query(ProgramacionMovilDB).filter(ProgramacionMovilDB.estado == "Intervenido", ProgramacionMovilDB.fecha_intervencion.like(hasta[:7] + "%")) \
+           .order_by(ProgramacionMovilDB.fecha_intervencion.desc(), ProgramacionMovilDB.id.desc()).all()
+    gm, ints = {x["movil"]: x["grupo"] for x in mv}, len(pv)
+    iv = [{"id": p.id, "movil": p.movil, "grupo": gm.get(p.movil, ""), "hito": p.hito_km, "fecha": p.fecha_intervencion, "km": p.km_intervencion,
+           "motivo": p.motivo or "", "ot": p.orden_trabajo or "", "observacion": p.observacion or "", "por": p.updated_by or ""} for p in pv]
     ag, n = {}, lambda e: sum(1 for x in mv if x["estado"] == e)
     for x in mv:
         if x["programado"]: ag.setdefault(x["programado"], []).append(x["movil"])
-    return {"fecha_corte": hasta, "moviles": mv, "agenda": [{"fecha": d, "moviles": sorted(m)} for d, m in sorted(ag.items())],
+    return {"fecha_corte": hasta, "moviles": mv, "intervenciones": iv, "agenda": [{"fecha": d, "moviles": sorted(m)} for d, m in sorted(ag.items())],
             "resumen": {"moviles": len(mv), "km_mes": round(sum(x["km_mes"] for x in mv)), "vencidos": n("Vencido"), "proximos": n("Próximo"),
                         "programados": sum(1 for x in mv if x["programado"]), "intervenidos": ints,
                         "faltan": sum(1 for x in mv if x["estado"] in ("Vencido", "Próximo") and not x["programado"])}}
@@ -159,11 +185,13 @@ def _prog(db, mv, hito, fecha, who):
     if p is None: p = ProgramacionMovilDB(movil=mv, hito_km=hito); db.add(p)
     p.estado, p.fecha_programada, p.updated_by = "Programado", fecha, who
 
-def _interv(db, mv, hito, fecha, obs, who):
+def _interv(db, mv, hito, fecha, obs, who, motivo="", ot=""):
     o = db.query(LecturaKmDB.odo_max).filter(LecturaKmDB.movil == mv, LecturaKmDB.odo_max > 0).order_by(LecturaKmDB.fecha.desc()).first()
     p = db.query(ProgramacionMovilDB).filter_by(movil=mv, hito_km=hito).first() or ProgramacionMovilDB(movil=mv, hito_km=hito)
     db.add(p)
     p.estado, p.fecha_intervencion, p.km_intervencion, p.observacion, p.updated_by = "Intervenido", fecha or date.today().isoformat(), int(o[0]) if o else 0, obs or "", who
+    p.motivo, p.orden_trabajo = motivo or "", ot or ""
+    return p
 
 class ProgramarIn(BaseModel):
     movil: str
@@ -172,6 +200,8 @@ class ProgramarIn(BaseModel):
 class IntervenirIn(BaseModel):
     movil: str
     fecha: Optional[str] = None
+    motivo: str = ""
+    orden_trabajo: str = ""
     observacion: str = ""
 
 class AutoIn(BaseModel):
@@ -189,7 +219,9 @@ def programar(b: ProgramarIn, db: Session = Depends(get_db), user=Depends(get_cu
 def intervenir(b: IntervenirIn, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
     mv = _norm(b.movil); hito = _pend(db, mv, _cfg(db))
     if not hito: raise HTTPException(404, "Móvil sin kilometraje cargado o sin grupo")
-    _interv(db, mv, hito, _fecha(b.fecha), b.observacion, _who(user)); db.commit(); return {"ok": True}
+    if not b.motivo.strip(): raise HTTPException(400, "Indica por qué se intervino el móvil")
+    p = _interv(db, mv, hito, _fecha(b.fecha), b.observacion.strip(), _who(user), b.motivo.strip(), b.orden_trabajo.strip())
+    db.commit(); return {"ok": True, "id": p.id, "movil": mv, "hito": hito}
 
 @router.post("/autoprogramar")
 def autoprogramar(b: AutoIn, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
@@ -209,6 +241,7 @@ def seguimiento(file: UploadFile = File(...), db: Session = Depends(get_db), use
     h = [str(x or "").lower() for x in (rows[0] if rows else [])]
     ci = lambda k: next((i for i, x in enumerate(h) if k in x), -1)
     im, ie, ifc, io_ = max(ci("móvil"), ci("movil")), ci("estado"), ci("fecha"), ci("obs")
+    imo = ci("motivo"); iot = next((i for i, x in enumerate(h) if x.strip() == "ot" or "orden" in x or x.strip().endswith(" ot")), -1)
     if im < 0 or ie < 0: raise HTTPException(400, "Columnas requeridas: Móvil, Estado, Fecha (y opcional Observación)")
     ok, bad = 0, []
     for r in rows[1:]:
@@ -216,8 +249,16 @@ def seguimiento(file: UploadFile = File(...), db: Session = Depends(get_db), use
         mv, e, f = _norm(get(im)), str(get(ie) or "").lower(), _fecha(get(ifc))
         if not mv: continue
         hito = _pend(db, mv, c); good = False
-        if hito and e.startswith("interv"): _interv(db, mv, hito, f, str(get(io_) or ""), _who(user)); good = True
+        if hito and e.startswith("interv"): _interv(db, mv, hito, f, _s(get(io_)), _who(user), _s(get(imo)), _s(get(iot))); good = True
         elif hito and e.startswith("prog") and f: _prog(db, mv, hito, f, _who(user)); good = True
         ok += good
         if not good: bad.append(mv)
     db.commit(); return {"aplicados": ok, "no_aplicados": bad[:30]}
+
+@router.delete("/intervenciones/{pid}")
+def deshacer(pid: int, db: Session = Depends(get_db), user=Depends(get_current_admin_user)):
+    p = db.query(ProgramacionMovilDB).filter(ProgramacionMovilDB.id == pid, ProgramacionMovilDB.estado == "Intervenido").first()
+    if not p: raise HTTPException(404, "Intervención no encontrada")
+    if p.fecha_programada: p.estado, p.fecha_intervencion, p.km_intervencion, p.motivo, p.orden_trabajo, p.observacion = "Programado", "", 0, "", "", ""
+    else: db.delete(p)
+    db.commit(); return {"ok": True}
