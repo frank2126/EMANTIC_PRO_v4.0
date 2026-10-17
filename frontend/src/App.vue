@@ -1,4 +1,4 @@
-"<template>
+<template>
   <!-- Layout autenticado -->
   <div v-if="isLoggedIn()">
 
@@ -487,11 +487,8 @@
 
   </div>
 
-    <!-- Login sin navbar -->
+  <!-- Login sin navbar -->
   <router-view v-else />
-
-  <!-- Pantalla de transición (login / cerrar sesión) -->
-  <AppLoader />
 </template>
 
 <script setup>
@@ -500,7 +497,6 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuth } from './auth.js'
 import { useLoader } from './loader.js'
-import AppLoader from './components/AppLoader.vue'
 
 const router      = useRouter()
 const { state, logout, isAdmin, isLoggedIn } = useAuth()
@@ -510,6 +506,8 @@ const drawerOpen  = ref(false)
 const userInitial = computed(() => state.user?.name?.charAt(0).toUpperCase() || '?')
 const currentYear = computed(() => new Date().getFullYear())
 
+// La pantalla de transición (AppLoader) se monta en main.js, fuera de este componente,
+// para que no desaparezca cuando el layout cambia entre login y navbar.
 const handleLogout = async () => {
   menuOpen.value   = false
   drawerOpen.value = false

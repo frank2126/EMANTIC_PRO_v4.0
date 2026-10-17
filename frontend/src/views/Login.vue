@@ -75,9 +75,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../auth.js'
+import { useLoader } from '../loader.js'
 
 const router = useRouter()
 const { login } = useAuth()
+const loader = useLoader()
 
 const form         = ref({ username: '', password: '' })
 const loading      = ref(false)
@@ -91,11 +93,14 @@ const attemptsLeft = ref(5)
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password || lockMsg.value) return
   errorMsg.value = ''; successMsg.value = ''; loading.value = true
+  loader.show('Iniciando sesión', 'Verificando tus credenciales…')
   try {
     await login(form.value.username, form.value.password)
-    successMsg.value = '¡Bienvenido! Redirigiendo...'
-    setTimeout(() => router.push('/dashboard'), 700)
+    loader.show('Bienvenido', 'Preparando tu panel…')
+    await router.push('/dashboard')
+    loader.hide(900)   // el dashboard ya muestra su skeleton debajo mientras llegan los datos
   } catch (e) {
+    loader.hide()
     const detail = e.response?.data?.detail || 'Error de conexión con el servidor'
     if (e.response?.status === 429) {
       lockMsg.value = detail
