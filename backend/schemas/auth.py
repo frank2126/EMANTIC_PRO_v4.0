@@ -1,7 +1,7 @@
 #  Autenticación
 #  Validación segura de datos de entrada/salida
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional
 from security import validate_username, validate_password_strength, get_password_error_message
 from utils.sanitize import sanitize_string, sanitize_email
@@ -176,5 +176,4 @@ class UserResponse(BaseModel):
     active: bool
     created_at: str
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

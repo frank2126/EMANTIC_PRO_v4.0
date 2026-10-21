@@ -15,7 +15,7 @@ import hashlib
 from database import SessionLocal, MaintenanceDB
 from deps import get_db, get_current_admin_user, get_current_user
 from schemas.auth import CurrentUserResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,7 @@ class MaintenanceCreate(BaseModel):
     estado: str = "Programado"
     tecnico: str = ""
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MaintenanceUpdate(BaseModel):
     """Schema para actualizar mantenimiento"""
@@ -45,8 +44,7 @@ class MaintenanceUpdate(BaseModel):
     estado: Optional[str] = None
     tecnico: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MaintenanceResponse(BaseModel):
     """Schema para respuesta de mantenimiento"""
@@ -60,8 +58,7 @@ class MaintenanceResponse(BaseModel):
     tecnico: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedResponse(BaseModel):
     """Schema para respuesta paginada"""

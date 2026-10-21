@@ -15,7 +15,7 @@ import hashlib
 from database import SessionLocal, ReporteDB
 from deps import get_db, get_current_user, get_current_admin_user
 from schemas.auth import CurrentUserResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,7 @@ class ReporteCreate(BaseModel):
     novedad: str
     tipo_novedad: str = "OK"
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ReporteResponse(BaseModel):
     """Schema para respuesta de reporte"""
@@ -53,8 +52,7 @@ class ReporteResponse(BaseModel):
     created_at: datetime
     uploaded_by: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedReporteResponse(BaseModel):
     """Schema para respuesta paginada"""
