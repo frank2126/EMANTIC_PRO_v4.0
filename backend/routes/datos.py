@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Rutas de datos operativos
+#  Rutas de datos operativos
 #  DPV, ICO, Disponibilidad de flota, DPV mensual e historial de cargas
-#  (endpoints consumidos por CargaDPV.vue, IndicadoresICO.vue y dashboardStore.js)
+#  endpoints consumidos por CargaDPV.vue, IndicadoresICO.vue y dashboardStore.js
 # ═══════════════════════════════════════════════════════════
 
 import io

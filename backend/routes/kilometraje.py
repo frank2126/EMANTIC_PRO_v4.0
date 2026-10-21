@@ -1,6 +1,8 @@
 # Kilometraje y programación de móviles  ·  prefijo /api/kilometraje
 # Carga la exportación de telemetría (Recorrido / Mín / Máx por día), calcula km por odómetro
 # y gestiona hitos de mantenimiento: pendiente → programado → intervenido.
+
+
 import csv, io, json, logging, re, time
 from datetime import date, timedelta
 from typing import List, Optional

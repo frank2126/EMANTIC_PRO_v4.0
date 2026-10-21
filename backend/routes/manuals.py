@@ -1,5 +1,5 @@
 """
-EMANTIC PRO - Manuals Router
+Manuals Router
 Gestión de manuales técnicos con serialización correcta
 Basado en código original que funcionaba correctamente
 """
@@ -15,7 +15,7 @@ from datetime import datetime, date
 router = APIRouter(prefix="/api/manuals", tags=["manuals"])
 
 # ═══════════════════════════════════════════════════════════
-# CATEGORÍAS HARDCODEADAS (Como en el código original)
+# CATEGORÍAS HARDCODEADAS 
 # ═══════════════════════════════════════════════════════════
 
 MANUAL_CATEGORIES = [

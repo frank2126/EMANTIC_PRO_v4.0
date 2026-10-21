@@ -1,7 +1,8 @@
 # Programación de móviles a partir del check list de operadores · prefijo /api/checklist
 # Carga el Excel del check list (día de por medio), extrae los ítems de mantenimiento,
 # detecta móviles con el mismo ítem reportado >= N veces por >= M operadores distintos
-# (misma regla de la tabla dinámica manual) y gestiona el seguimiento hasta "Intervenido".
+# gestiona el seguimiento hasta "Intervenido".
+
 import io, logging, re, time, unicodedata
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
@@ -17,8 +18,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/checklist", tags=["checklist"])
 
 MAX_MB = 10
-MIN_REPORTES = 2      # regla: veces que aparece el ítem en el móvil…
-MIN_OPERADORES = 2    # …con operadores diferentes
+MIN_REPORTES = 2     
+MIN_OPERADORES = 2    
 
 
 def _n(v: Any) -> str:
@@ -26,7 +27,8 @@ def _n(v: Any) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-# Catálogo: nombre canónico + regla de reconocimiento (sobre texto normalizado sin tildes)
+# Catálogo: nombre canónico + regla de reconocimiento 
+
 CATALOGO = [
     ("Botones de rueda de dirección",            lambda n: "boton" in n and "direccion" in n),
     ("Plataformas deshabilitadas y funcionalidad", lambda n: "plataforma" in n),

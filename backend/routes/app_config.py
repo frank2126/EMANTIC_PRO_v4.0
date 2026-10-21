@@ -1,9 +1,8 @@
 """
-EMANTIC PRO - Configuración compartida de la app
-
 Guarda la URL de inserción de Power BI en la base de datos para que quede fija
 para todos los usuarios: cualquiera con sesión iniciada puede leerla y solo un
-administrador puede cambiarla.
+administrador puede cambiarla
+
 """
 
 import logging

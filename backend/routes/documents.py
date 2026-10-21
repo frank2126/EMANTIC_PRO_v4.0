@@ -1,5 +1,5 @@
 """
-EMANTIC PRO - Rutas de Documentación
+Rutas de Documentación
 Endpoints consumidos por Documentation.vue y DocReader.vue:
   GET    /api/docs                  -> lista de documentos
   POST   /api/docs/upload           -> subir documento (title, category, file)

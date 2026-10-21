@@ -1,6 +1,6 @@
 
 # Rutas de Reportes
-#  CRUD  BD y caché
+# CRUD  BD y caché
 
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

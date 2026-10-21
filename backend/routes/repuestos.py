@@ -1,5 +1,5 @@
 """
-EMANTIC PRO - Rutas de Repuestos
+- Rutas de Repuestos
 - Listado con búsqueda, filtros y paginación en el servidor
 - Carga desde Excel (.xlsx), solo administradores
 - Requiere sesión iniciada (igual que el resto de la API)

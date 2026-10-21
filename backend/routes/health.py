@@ -1,5 +1,5 @@
 
-#  Verificación de procesos del backend y todas sus dependencias
+# Verificación de procesos del backend y todas sus dependencias
 
 import asyncio
 from datetime import datetime

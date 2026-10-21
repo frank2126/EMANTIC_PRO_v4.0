@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
-#  EMANTIX PRO — Tests para routes/auth.py
-#  Login, Logout, Reset Password, JWT
+# — Tests para routes/auth.py
+# Login, Logout, Reset Password, JWT
 # ═══════════════════════════════════════════════════════════
 
 import pytest

@@ -12,7 +12,7 @@ import os
 router = APIRouter(prefix="/api/diagnostico", tags=["diagnostico"])
 
 # ═══════════════════════════════════════════════════════════
-# Carga del dataset (JSON estatico, cacheado en memoria)
+# Carga del dataset JSON estatico
 # ═══════════════════════════════════════════════════════════
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "emantic_maintenance_data.json")
