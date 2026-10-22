@@ -136,7 +136,7 @@ const routes = [
     }
   },
   {
-    path: '/:pathMatch(model_config = ConfigDict(from_attributes=True)*',
+    path: '/:pathMatch(.*)*',
     redirect: '/dashboard'
   }
 ]

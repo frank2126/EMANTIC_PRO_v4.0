@@ -118,6 +118,8 @@ import axios from 'axios'
 import { useAuth } from '../auth.js'
 
 const props = defineProps({ version: { type: Number, default: 0 } })   // sube cuando se carga un Excel → recarga
+// Avisa a la página (encabezado de Mantenimiento) con los totales cada vez que se cargan o cambian los datos
+const emit = defineEmits(['resumen'])
 const { isAdmin } = useAuth()
 const hoy = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
 const fmt = n => (n == null || n === '') ? '' : Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
@@ -130,7 +132,10 @@ const cols = [['pos', '#'], ['movil', 'Móvil'], ['grupo', 'Grupo'], ['km_mes', 
   ['hito', 'Hito pendiente'], ['dias', 'Días'], ['estado', 'Estado'], ['programado', 'Programado'], ['ultima', 'Últ. interv.'], ['alertas', 'Alertas']]
 
 const load = async () => {
-  try { d.value = (await axios.get('/api/kilometraje/programacion', { params: { horizonte: hz.value } })).data } catch {}
+  try {
+    d.value = (await axios.get('/api/kilometraje/programacion', { params: { horizonte: hz.value } })).data
+    emit('resumen', d.value.resumen || {})
+  } catch {}
 }
 const orden = k => { if (sk.value === k) asc.value = !asc.value; else { sk.value = k; asc.value = true } }
 
@@ -255,4 +260,4 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .pg-toast button { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); border-radius:6px; padding:3px 10px; cursor:pointer; font-family:inherit; }
 .fade-enter-active, .fade-leave-active { transition:opacity .2s; } .fade-enter-from, .fade-leave-to { opacity:0; }
 .toast-enter-active, .toast-leave-active { transition:all .3s; } .toast-enter-from, .toast-leave-to { opacity:0; transform:translateY(16px); }
-</style>  
+</style>
