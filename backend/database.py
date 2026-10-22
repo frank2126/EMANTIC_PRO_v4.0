@@ -192,6 +192,29 @@ class DpvMensualDB(Base):
 
     __table_args__ = (UniqueConstraint('empresa', 'mes', name='uq_dpv_mensual_empresa_mes'),)
 
+class DpvKmMensualDB(Base):
+    """Kilómetros oficiales de cada mes por unidad (E10 / E16), en total y por tipología.
+
+    Es el denominador del DPV: las inmovilizaciones se calculan siempre en vivo desde dpv_registros,
+    así que aquí NO se guardan DPV ni conteos (solo, como referencia de auditoría, lo que traía el Excel).
+    Tabla nueva: init_db() la crea sola al reiniciar; no hace falta tocar dpv_mensual.
+    """
+    __tablename__ = "dpv_km_mensual"
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    empresa     = Column(String(10), nullable=False, index=True)    # 'E10' | 'E16'
+    mes         = Column(DateTime, nullable=False, index=True)      # primer día del mes
+    km_total    = Column(Float, default=0)
+    km_padron   = Column(Float, nullable=True)
+    km_buseton  = Column(Float, nullable=True)
+    inm_excel   = Column(Integer, nullable=True)                    # TOTAL INMOVILIZADOS que calculó el Excel (referencia)
+    dpv_excel   = Column(Float, nullable=True)                      # DPV GENERAL que mostraba el Excel (referencia)
+    fuente      = Column(String(20), default="excel")               # 'excel' (carga) | 'manual' (formulario)
+    updated_by  = Column(String(100), default="")
+    created_at  = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at  = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('empresa', 'mes', name='uq_dpv_km_mensual_empresa_mes'),)
+
 class DisponibilidadDB(Base):
     __tablename__ = "disponibilidad"
     id                   = Column(Integer, primary_key=True, autoincrement=True)
@@ -325,8 +348,7 @@ def init_db():
         db.close()
 
 # ═══════════════════════════════════════════════════════════
-# MODELO REPUESTODB - CORREGIDO PARA PYTHON 3.12
-# Reemplazar lo que agregaste antes por esto
+# MODELO REPUESTODB
 # ═══════════════════════════════════════════════════════════
 
 class RepuestoDB(Base):

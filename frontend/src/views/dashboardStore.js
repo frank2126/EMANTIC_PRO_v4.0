@@ -1,4 +1,4 @@
-// dashboardStore.js — VERSION DEFINITIVA CORREGIDA + DPV MENSUAL
+// dashboardStore.js — carga en dos fases (mes en curso primero, resto en segundo plano)
 import { defineStore } from 'pinia'
 import axios from 'axios'
 import {
@@ -6,31 +6,11 @@ import {
   chipsSeleccion, normTipologia, ufDeRegistro, tipoInfraccionLocal, diasParaResponder, hoyISO,
   ESTADO_PENDIENTE,
 } from './icoUtils.js'
+// DPV: misma mecánica que ICO (slicers + selección cruzada); la lógica pura vive en dpvUtils.js
+import * as DPV from './dpvUtils.js'
 
-function normDPV(r) {
-  return {
-    id:                   r.id,
-    dpv_id:               r.dpv_id,
-    estado:               r.estado || '',
-    empresa:              (r.empresa || '').trim(),
-    placa:                (r.placa  || '').trim(),
-    movil:                (r.movil  || '').trim(),
-    causa_inmovilizacion: (r.causa  || r.causa_inmovilizacion || '').trim(),
-    descripcion:          (r.descripcion || '').trim(),
-    fecha:                (r.fecha || r.fecha_inmovilizacion || '').slice(0, 10),
-    hora:                 (r.hora  || '').slice(0, 8),
-    tipologia:            (r.tipologia || '').trim().toUpperCase(),
-    ruta:                 (r.ruta  || '').trim(),
-    dia_semana:           (r.dia_semana || '').trim(),
-    alerta:               r.alerta || '',
-    franja:               (r.franja || r.franja_horaria || '')
-                            .replace(/\u00a0/g, '')
-                            .replace(/\s/g, '')
-                            .replace(/\./g, '')
-                            .toUpperCase()
-                            .trim(),
-  }
-}
+// Eventos del DPV tal como llegan del backend → filas del tablero (y se unifican las causas recortadas por el Excel)
+const prepararDPV = items => DPV.unificarCausas((items || []).map(DPV.normDPV))
 
 function normICO(r) {
   const empresa = (r.empresa || '').trim()
@@ -63,6 +43,12 @@ function normICO(r) {
   }
 }
 
+// Mes en curso en formato 'YYYY-MM' (hora local, no UTC)
+function mesActual() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 const filtrosICOVacios = () => ({
   uf: [],               // ['UF10', 'UF16']
   anio: '',             // '2026'; '' = todos los años
@@ -88,32 +74,23 @@ export const useDashboardStore = defineStore('dashboard', {
     error:   null,
     lastSync: null,
 
-    // en state():
-disponibilidad: { e10: null, e16: null },
+    // true cuando ya se descargó TODO el DPV (necesario para las opciones de año/mes y el contador del tab)
+    dpvCompleto: false,
 
-// en actions:
-async cargarDisponibilidad() {
-  try {
-    const { data } = await axios.get('/api/disponibilidad')
-    this.disponibilidad.e10 = data?.e10 || null
-    this.disponibilidad.e16 = data?.e16 || null
-  } catch (e) {
-    console.error('[Store] Error cargando disponibilidad:', e)
-  }
-},
+    disponibilidad: { e10: null, e16: null },
 
-    // ── DPV Mensual por Kilometraje ──────────────────────────
+    // ── DPV mensual = km ÷ inmovilizaciones, una serie por unidad (la calcula el backend: /api/dpv-mensual) ──
     dpvMensual: {
-      e10: [],   // [{ mes, mes_label, dpv, estandar, critico, varados, kms, padron, buseton }]
+      e10: [],   // [{ mes, mes_label, km, inm, dpv, km_padron, inm_padron, dpv_padron, …, nivel, origen }]
       e16: [],
     },
+    dpvUmbrales: { ...DPV.UMBRALES_DEFECTO },   // { estandar, critico } en km: los manda el backend (.env)
+    dpvEstadosDescartados: [],                   // estados que NO cuentan como inmovilización (los manda el backend)
 
-    dpvFiltros: {
-      franja:    [],
-      mes:       '',   // formato 'YYYY-MM', ej: '2026-07'
-      tipologia: [],
-      uf:        [],
-    },
+    // ── DPV: slicers (filtros duros) y selección cruzada por clic en las gráficas ──
+    dpvFiltros: DPV.filtrosVacios(),
+    dpvSel:     DPV.SELECCION_VACIA(),
+    dpvInicializado: false,   // true cuando ya se aplicó el mes más reciente como filtro inicial
 
     // ── ICO: slicers (filtros duros) y selección cruzada por clic en las gráficas ──
     icoFiltros: filtrosICOVacios(),
@@ -123,146 +100,104 @@ async cargarDisponibilidad() {
 
   getters: {
 
-      dpvFiltrado(state) {
-      return state.dpvRaw.filter(r => {
-      if (state.dpvFiltros.mes && r.fecha.slice(0, 7) !== state.dpvFiltros.mes) return false
+    // ══════════════════════════════════════════════════════════
+    //  DPV — filtros duros (slicers) + selección cruzada estilo Power BI
+    //  Lógica pura en dpvUtils.js. DPV = km del mes ÷ inmovilizaciones del mes (las calcula el backend).
+    // ══════════════════════════════════════════════════════════
 
-    if (state.dpvFiltros.franja.length > 0) {
-          const f = r.franja
-          const okAM = state.dpvFiltros.franja.includes('AM') && f === 'AM'
-          const okPM = state.dpvFiltros.franja.includes('PM') && f === 'PM'
-          if (!okAM && !okPM) return false
+    // Filas tras los slicers (Unidad, Año/Mes, Franja, Tipología, Estado, búsqueda)
+    dpvBase(state) {
+      return DPV.aplicarSlicers(state.dpvRaw, state.dpvFiltros)
+    },
+
+    // Filas tras slicers + selección cruzada: alimenta los contadores y la tabla de detalle
+    dpvFiltrado(state) {
+      return DPV.aplicarSeleccion(this.dpvBase, state.dpvSel)
+    },
+
+    dpvHaySeleccion(state) {
+      return haySeleccion(state.dpvSel)
+    },
+
+    dpvChips(state) {
+      return DPV.chipsSeleccion(state.dpvSel)
+    },
+
+    dpvKPIs() {
+      return { ...DPV.kpisEventos(this.dpvFiltrado, hoyISO()), baseTotal: this.dpvBase.length }
+    },
+
+    // Eventos de TODO el histórico bajo la misma regla de estado que el resto del tablero (base del PORCENTAJE)
+    dpvTotalHistorico(state) {
+      return DPV.aplicarSlicers(state.dpvRaw, { ...DPV.filtrosVacios(), estado: state.dpvFiltros.estado }).length
+    },
+
+    // Qué parte del histórico es lo que se ve ahora (slicers + selección), con un decimal
+    dpvPorcentaje() {
+      const total = this.dpvTotalHistorico
+      return total ? Math.round((this.dpvFiltrado.length / total) * 1000) / 10 : 0
+    },
+
+    // Cada visual excluye SU PROPIA dimensión de la selección para mostrar todas sus categorías
+    // (con las seleccionadas resaltadas) y aplica el resto de selecciones.
+    dpvHeatmap(state) {
+      return DPV.heatmap(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'periodos'), state.dpvFiltros, state.dpvSel.periodos)
+    },
+
+    dpvHoras(state) {
+      return DPV.horasHeat(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'hora'), state.dpvSel.hora)
+    },
+
+    dpvDona(state) {
+      return DPV.dona(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'tipologia'), state.dpvSel.tipologia)
+    },
+
+    dpvCausas(state) {
+      return DPV.ranking(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'causa'), DPV.DIM.causa, { seleccion: state.dpvSel.causa })
+    },
+
+    dpvRutas(state) {
+      return DPV.ranking(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'ruta'), DPV.DIM.ruta, { seleccion: state.dpvSel.ruta })
+    },
+
+    dpvMoviles(state) {
+      return DPV.ranking(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'movil'), DPV.DIM.movil, { seleccion: state.dpvSel.movil })
+    },
+
+    dpvOperadores(state) {
+      return DPV.ranking(DPV.aplicarSeleccion(this.dpvBase, state.dpvSel, 'operador'), DPV.DIM.operador, { seleccion: state.dpvSel.operador })
+    },
+
+    // Opciones de los slicers a partir de los datos cargados
+    dpvOpciones(state) {
+      return DPV.opcionesSlicers(state.dpvRaw)
+    },
+
+    // DPV mensual: una tarjeta por unidad visible (todas si no hay unidad elegida). El KPI sigue el periodo de los slicers;
+    // la gráfica muestra TODO el histórico con los meses del periodo resaltados. Los km son del mes completo, así que
+    // ni Franja, Estado, búsqueda ni la selección cruzada lo modifican (ver dpvKpiAviso).
+    dpvTarjetas(state) {
+      const f = state.dpvFiltros
+      const u = state.dpvUmbrales
+      const campo = DPV.camposSerie(f.tipologia)
+      const visibles = f.uf.length ? f.uf : DPV.UNIDADES.map(x => x.key)
+      return DPV.UNIDADES.filter(x => visibles.includes(x.key)).map(x => {
+        const datos = (x.key === 'UF10' ? state.dpvMensual.e10 : state.dpvMensual.e16) || []
+        const geo = DPV.geometriaSerie(datos, { campo: campo.dpv, umbrales: u })
+        return {
+          uf: x.key, label: x.label, nombre: x.nombre, color: DPV.COLOR_UF[x.key],
+          datos, campo, geo,
+          kpi: DPV.kpiDpv([{ uf: x.key, datos }], f, u),
+          puntos: geo.puntos.map(p => ({ ...p, enPeriodo: DPV.enPeriodo(p.mes, f) })),
+          etiquetados: [...DPV.indicesEtiquetados(geo.puntos)],
         }
-
-        if (state.dpvFiltros.tipologia.length > 0) {
-          const t = r.tipologia
-          const match = state.dpvFiltros.tipologia.some(tp => t.includes(tp))
-          if (!match) return false
-        }
-
-        if (state.dpvFiltros.uf.length > 0) {
-          const m = (r.movil || '').toUpperCase()
-          const esZ32 = m.startsWith('Z32')
-          const esZ34 = m.startsWith('Z34')
-          const okUF10 = state.dpvFiltros.uf.includes('UF10') && esZ32
-          const okUF16 = state.dpvFiltros.uf.includes('UF16') && esZ34
-          if (!okUF10 && !okUF16) return false
-        }
-
-        return true
       })
     },
 
-    dpvPorcentaje(state) {
-      if (!state.dpvRaw.length) return 0
-      return Math.round((this.dpvFiltrado.length / state.dpvRaw.length) * 100)
-    },
-
-    dpvDona() {
-      const counts = { PADRÓN: 0, BUSETON: 0 }
-      this.dpvFiltrado.forEach(r => {
-        if (r.tipologia.includes('PAD')) counts['PADRÓN']++
-        else counts['BUSETON']++
-      })
-      const total = this.dpvFiltrado.length || 1
-      const CIRC  = 2 * Math.PI * 52
-      let offset  = 0
-      return [
-        { label: 'PADRÓN',  color: '#084534', total: counts['PADRÓN'] },
-        { label: 'BUSETON', color: '#31b079', total: counts['BUSETON'] },
-      ].map(seg => {
-        const dash = (seg.total / total) * CIRC
-        const out  = { ...seg, pct: Math.round(seg.total/total*100), dash, gap: CIRC-dash, offset }
-        offset += dash
-        return out
-      })
-    },
-
-    dpvHeatmapDias() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        if (r.fecha) {
-          map[r.fecha] = (map[r.fecha] || 0) + 1
-        }
-      })
-      return Object.entries(map)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([fecha, total]) => ({
-          fecha,
-          dia: fecha.slice(8, 10),
-          total,
-        }))
-    },
-
-    dpvHeatmap() {
-      const arr = Array(24).fill(0)
-      this.dpvFiltrado.forEach(r => {
-        if (r.hora) {
-          const h = parseInt(r.hora.split(':')[0], 10)
-          if (!isNaN(h) && h >= 0 && h < 24) arr[h]++
-        }
-      })
-      return arr
-    },
-
-    dpvCausas() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        const v = r.causa_inmovilizacion || 'SIN ESPECIFICAR'
-        if (v) map[v] = (map[v] || 0) + 1
-      })
-      return Object.entries(map)
-        .map(([k, total]) => ({ causa_inmovilizacion: k, total }))
-        .sort((a, b) => b.total - a.total)
-    },
-
-    dpvCausaMovil() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        const movil = r.movil || 'S/M'
-        const causa = r.causa_inmovilizacion || 'S/C'
-        const key   = `${movil}|||${causa}`
-        map[key]    = (map[key] || 0) + 1
-      })
-      return Object.entries(map)
-        .map(([k, total]) => {
-          const [movil, causa] = k.split('|||')
-          return { movil, causa, total }
-        })
-        .sort((a, b) => b.total - a.total)
-    },
-
-    dpvOperadores() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        const v = String(r.operador || 'DESCONOCIDO').trim()
-        if (v) map[v] = (map[v] || 0) + 1
-      })
-      return Object.entries(map)
-        .map(([k, total]) => ({ operador: k, total }))
-        .sort((a, b) => b.total - a.total)
-    },
-
-    dpvRutas() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        const v = r.ruta || 'S/R'
-        if (v) map[v] = (map[v] || 0) + 1
-      })
-      return Object.entries(map)
-        .map(([k, total]) => ({ ruta: k, total }))
-        .sort((a, b) => b.total - a.total)
-    },
-
-    dpvMoviles() {
-      const map = {}
-      this.dpvFiltrado.forEach(r => {
-        const v = r.movil || 'S/M'
-        if (v) map[v] = (map[v] || 0) + 1
-      })
-      return Object.entries(map)
-        .map(([k, total]) => ({ movil: k, total }))
-        .sort((a, b) => b.total - a.total)
+    // ¿Hay algún filtro que el DPV mensual NO aplica? (la vista lo avisa para que no se espere otra cosa)
+    dpvKpiAviso(state) {
+      const f = state.dpvFiltros
+      return f.franja.length > 0 || !!f.estado || !!f.busqueda.trim() || haySeleccion(state.dpvSel)
     },
 
     // ══════════════════════════════════════════════════════════
@@ -373,26 +308,95 @@ async cargarDisponibilidad() {
   },
 
   actions: {
-    toggleFranjaDPV(f) {
-      const idx = this.dpvFiltros.franja.indexOf(f)
-      if (idx > -1) this.dpvFiltros.franja.splice(idx, 1)
-      else          this.dpvFiltros.franja.push(f)
-    },
-
-    toggleTipoDPV(t) {
-      const idx = this.dpvFiltros.tipologia.indexOf(t)
-      if (idx > -1) this.dpvFiltros.tipologia.splice(idx, 1)
-      else          this.dpvFiltros.tipologia.push(t)
-    },
+    // ── DPV: slicers ─────────────────────────────────────────
+    // Cambiar un slicer limpia la selección cruzada (las claves de día/mes pueden dejar de existir).
 
     toggleUFDPV(uf) {
-      const idx = this.dpvFiltros.uf.indexOf(uf)
-      if (idx > -1) this.dpvFiltros.uf.splice(idx, 1)
-      else          this.dpvFiltros.uf.push(uf)
+      alternar(this.dpvFiltros.uf, uf)
+      this.limpiarSelDPV()
     },
 
+    setAnioDPV(anio) {
+      this.dpvFiltros.anio = anio ? String(anio) : ''
+      // Al cambiar de año se conservan solo los meses que existan en ese año; sin año no hay meses
+      const disponibles = this.dpvFiltros.anio ? (this.dpvOpciones.mesesPorAnio[this.dpvFiltros.anio] || []) : []
+      this.dpvFiltros.meses = this.dpvFiltros.meses.filter(m => disponibles.includes(m))
+      this.limpiarSelDPV()
+    },
+
+    toggleMesDPV(mes) {
+      if (!this.dpvFiltros.anio) return
+      alternar(this.dpvFiltros.meses, mes)
+      this.limpiarSelDPV()
+    },
+
+    toggleFranjaDPV(franja) {
+      alternar(this.dpvFiltros.franja, franja)
+      this.limpiarSelDPV()
+    },
+
+    toggleTipoDPV(tipologia) {
+      alternar(this.dpvFiltros.tipologia, tipologia)
+      this.limpiarSelDPV()
+    },
+
+    // '' = solo lo que cuenta para el DPV · '*' = todos los estados · otro texto = ese estado
+    setEstadoDPV(estado) {
+      this.dpvFiltros.estado = estado || ''
+      this.limpiarSelDPV()
+    },
+
+    setBusquedaDPV(texto) {
+      this.dpvFiltros.busqueda = texto || ''
+      this.limpiarSelDPV()
+    },
+
+    // "Limpiar": quita TODOS los filtros y selecciones (muestra todo el histórico)
     resetFiltrosDPV() {
-      this.dpvFiltros = { franja: [], mes: '', tipologia: [], uf: [] }
+      this.dpvFiltros = DPV.filtrosVacios()
+      this.limpiarSelDPV()
+    },
+
+    // Filtro inicial = año y mes más recientes con datos (como abre el tablero ICO). Se aplica una sola vez.
+    aplicarPorDefectoDPV() {
+      const p = DPV.periodoPorDefecto(this.dpvRaw)
+      if (!p) return
+      this.dpvFiltros.anio  = p.anio
+      this.dpvFiltros.meses = p.meses
+      this.dpvInicializado  = true
+    },
+
+    // Clic en un mes de la gráfica de DPV mensual: el tablero pasa a ese mes. Clic en el único mes elegido: todo el año.
+    // Ctrl / ⌘ / Shift + clic suma o quita meses (solo dentro del mismo año).
+    irAMesDPV(mes, aditivo = false) {
+      const anio = mes.slice(0, 4)
+      const m = parseInt(mes.slice(5, 7), 10)
+      const f = this.dpvFiltros
+      if (aditivo && f.anio === anio) alternar(f.meses, m)
+      else if (f.anio === anio && f.meses.length === 1 && f.meses[0] === m) f.meses = []
+      else { f.anio = anio; f.meses = [m] }
+      this.limpiarSelDPV()
+    },
+
+    // ── DPV: selección cruzada (clic en gráficas y tablas) ───────
+    // Mismas reglas que ICO: clic simple reemplaza (o quita si era la única); Ctrl / ⌘ / Shift suma; entre visuales se combinan (Y).
+    toggleSelDPV(dim, key, aditivo = false) {
+      const actual = this.dpvSel[dim]
+      if (!actual) return
+      if (aditivo) {
+        alternar(actual, key)
+      } else {
+        this.dpvSel[dim] = (actual.length === 1 && actual[0] === key) ? [] : [key]
+      }
+    },
+
+    quitarSelDPV(dim, key) {
+      const actual = this.dpvSel[dim]
+      if (actual) this.dpvSel[dim] = actual.filter(k => k !== key)
+    },
+
+    limpiarSelDPV() {
+      this.dpvSel = DPV.SELECCION_VACIA()
     },
 
     // ── ICO: slicers ─────────────────────────────────────────
@@ -475,31 +479,72 @@ async cargarDisponibilidad() {
       this.icoSel = SELECCION_VACIA()
     },
 
+    // ── FASE 1: solo el mes en curso (rápido) ──────────────
+    // Si ya hay datos en pantalla (botón «Recargar»), no se encoge primero al mes en curso: se refresca todo de una vez.
     async cargarDatos() {
       this.loading = true
       this.error   = null
+      const primeraVez = !this.dpvRaw.length
       try {
-        const [resDPV, resICO] = await Promise.all([
-          axios.get('/api/dpv?limit=9999').catch(() => ({ data: { items: [] } })),
-          axios.get('/api/ico?limit=9999').catch(() => ({ data: { items: [] } })),
-        ])
-
-        const dpvItems = Array.isArray(resDPV.data) ? resDPV.data : (resDPV.data?.items || [])
-        const icoItems = Array.isArray(resICO.data) ? resICO.data : (resICO.data?.items || [])
-
-        this.dpvRaw  = dpvItems.map(normDPV)
-        this.icoRaw  = icoItems.map(normICO)
-        if (!this.icoInicializado) this.aplicarPorDefectoICO()
-        this.lastSync = new Date().toLocaleString('es-CO')
-
-        // Carga en paralelo el DPV mensual (no bloquea si falla)
-        this.cargarDpvMensual()
-
+        if (primeraVez) {
+          this.dpvCompleto = false
+          const { data } = await axios.get('/api/dpv', {
+            params: { mes: mesActual(), slim: true, limit: 5000 },
+          })
+          this.dpvRaw   = prepararDPV(data?.items)
+          this.lastSync = new Date().toLocaleString('es-CO')
+          if (!this.dpvInicializado) this.aplicarPorDefectoDPV()
+        } else {
+          await this.cargarDpvCompleto()
+          this.lastSync = new Date().toLocaleString('es-CO')
+        }
       } catch (e) {
-        this.error = e.message
-        console.error('[Store] Error cargando datos:', e)
+        this.error = e.response?.data?.detail || e.message
+        console.error('[Store] Error cargando DPV:', e)
       } finally {
         this.loading = false
+      }
+
+      // ── FASE 2: en segundo plano, sin bloquear la pantalla ──
+      if (primeraVez) this.cargarDpvCompleto()
+      this.cargarIco()
+      this.cargarDpvMensual()
+      this.cargarDisponibilidad()
+    },
+
+    async cargarDpvCompleto() {
+      try {
+        const { data } = await axios.get('/api/dpv', {
+          params: { slim: true, limit: 20000 },
+        })
+        this.dpvRaw      = prepararDPV(data?.items)
+        this.dpvCompleto = true
+        // Si el mes en curso aún no tenía eventos, el filtro inicial se decide ahora, con todo el histórico
+        if (!this.dpvInicializado) this.aplicarPorDefectoDPV()
+      } catch (e) {
+        this.error = e.response?.data?.detail || e.message
+        console.error('[Store] Error cargando DPV completo:', e)
+      }
+    },
+
+    async cargarIco() {
+      try {
+        const { data } = await axios.get('/api/ico', { params: { limit: 9999 } })
+        const items = Array.isArray(data) ? data : (data?.items || [])
+        this.icoRaw = items.map(normICO)
+        if (!this.icoInicializado) this.aplicarPorDefectoICO()
+      } catch (e) {
+        console.error('[Store] Error cargando ICO:', e)
+      }
+    },
+
+    async cargarDisponibilidad() {
+      try {
+        const { data } = await axios.get('/api/disponibilidad')
+        this.disponibilidad.e10 = data?.e10 || null
+        this.disponibilidad.e16 = data?.e16 || null
+      } catch (e) {
+        console.error('[Store] Error cargando disponibilidad:', e)
       }
     },
 
@@ -508,6 +553,11 @@ async cargarDisponibilidad() {
         const { data } = await axios.get('/api/dpv-mensual')
         this.dpvMensual.e10 = data?.e10 || []
         this.dpvMensual.e16 = data?.e16 || []
+        this.dpvUmbrales = {
+          estandar: data?.umbrales?.estandar ?? DPV.UMBRALES_DEFECTO.estandar,
+          critico:  data?.umbrales?.critico  ?? DPV.UMBRALES_DEFECTO.critico,
+        }
+        this.dpvEstadosDescartados = data?.estados_descartados || []
       } catch (e) {
         console.error('[Store] Error cargando DPV mensual:', e)
       }

@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════
-#  Rutas de datos operativos
+#  EMANTIX PRO — Rutas de datos operativos
 #  DPV, ICO, Disponibilidad de flota, DPV mensual e historial de cargas
-#  endpoints consumidos por CargaDPV.vue, IndicadoresICO.vue y dashboardStore.js
+#  (endpoints consumidos por CargaDPV.vue, IndicadoresICO.vue y dashboardStore.js)
 # ═══════════════════════════════════════════════════════════
 
 import io
@@ -14,12 +14,14 @@ from datetime import datetime, date, time as dtime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from config import settings
+from config import settings          # antes que dpv_reglas: config.py carga el .env (umbrales DPV_*)
+import dpv_reglas as reglas
 from database import (
-    DpvRegistroDB, IcoRegistroDB, DisponibilidadDB, DpvMensualDB, CargaHistorialDB,
+    DpvRegistroDB, IcoRegistroDB, DisponibilidadDB, DpvMensualDB, DpvKmMensualDB, CargaHistorialDB,
 )
 from deps import get_db, get_current_user, get_current_admin_user
 
@@ -213,6 +215,20 @@ def faltantes(headers: List[str], requeridas: List[str]) -> List[str]:
     return [r for r in requeridas if r not in headers]
 
 
+def hoja_con_columnas(wb, requeridas: List[str], preferidas: tuple = ()):
+    """Busca la hoja del libro que trae las columnas requeridas (el Excel del DPV tiene 17 hojas y la activa
+    puede ser cualquiera). Prueba primero las hojas de nombre «preferido». Devuelve (nombre, headers, filas);
+    si ninguna sirve, devuelve la hoja activa para que el error diga qué columnas faltan."""
+    hojas = sorted(wb.worksheets, key=lambda w: 0 if norm_header(w.title) in preferidas else 1)
+    for ws in hojas:
+        headers, filas = filas_hoja(ws)
+        if headers and not faltantes(headers, requeridas):
+            return ws.title, headers, filas
+    ws = wb.active
+    headers, filas = filas_hoja(ws)
+    return ws.title, headers, filas
+
+
 def registrar_historial(db: Session, tipo: str, user: Dict, archivo: str, total: int,
                         ins: int, upd: int, err: int, seg: float, msg: str = "") -> None:
     estado = "exitoso" if err == 0 else ("parcial" if ins + upd > 0 else "fallido")
@@ -276,17 +292,24 @@ DPV_LEN = {"estado": 100, "empresa": 200, "fuente": 200, "placa": 20, "movil": 2
            "alerta": 100, "franja_horaria": 50}
 
 
+DPV_HOJAS = ("BASE DE DATOS", "BASE", "DPV", "EVENTOS")   # nombres de hoja que se prueban primero
+
+
 @router.post("/dpv/upload")
 async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db),
                      user: Dict = Depends(get_current_admin_user)):
     t0 = time.time()
     wb = await leer_excel(file)
-    headers, filas = filas_hoja(wb.active)
+    # El libro del DPV trae varias hojas (base de datos, km por día, DPV_E10…): se usa la que tiene las columnas del evento
+    hoja, headers, filas = hoja_con_columnas(wb, ["DPV", "ESTADO", "PLACA"], DPV_HOJAS)
     falta = faltantes(headers, ["DPV", "ESTADO", "PLACA"])
     if falta:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Faltan columnas requeridas: {', '.join(falta)}")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            f"Faltan columnas requeridas: {', '.join(falta)} (hoja revisada: «{hoja}»)")
 
     registros, errores, total = [], [], 0
+    calidad: Dict[str, int] = {}      # cuántas filas tuvieron cada arreglo (espacios, estado, tipología, hora…)
+    reparados = 0                     # textos con doble codificación (Ã³ → ó) que se repararon
     for n, row in enumerate(filas, start=2):
         total += 1
         dpv_id = to_int(pick(row, "DPV"), None)
@@ -300,10 +323,18 @@ async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db)
             v = pick(row, *keys)
             if campo.startswith("fecha"):
                 r[campo] = to_dt(v)
-            elif campo == "hora":
+                continue
+            if isinstance(v, float) and v.is_integer():
+                v = int(v)                                   # operador 320000.0 → 320000
+            if isinstance(v, str) and fix_mojibake(v) != v:
+                reparados += 1
+            if campo == "hora":
                 r[campo] = to_str(v.time() if isinstance(v, datetime) else v, 10)
             else:
                 r[campo] = to_str(v, DPV_LEN.get(campo))
+        r, cambios = reglas.limpiar_evento(r)
+        for campo in cambios:
+            calidad[campo] = calidad.get(campo, 0) + 1
         registros.append(r)
 
     try:
@@ -319,18 +350,52 @@ async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db)
                 "causa": r["causa_inmovilizacion"],
                 "fecha": r["fecha_inmovilizacion"].strftime("%Y-%m-%d") if r["fecha_inmovilizacion"] else ""}
                for r in registros[:10]]
-    return respuesta(total, ins, upd, errores, seg, {"preview": preview})
+    descartadas = sum(1 for r in registros if not reglas.es_inmovilizacion(r["estado"]))
+    return respuesta(total, ins, upd, errores, seg, {
+        "preview": preview, "hoja": hoja,
+        "calidad": {"textos_reparados": reparados, "normalizados": calidad,
+                    "no_cuentan_para_dpv": descartadas},
+    })
+
+# Columnas que realmente usa el dashboard (evita enviar created_at, fuente, etc.)
+DPV_SLIM = ("id", "dpv_id", "estado", "fecha_inicio", "fecha_cierre", "empresa", "placa", "movil", "tipologia",
+            "fecha_inmovilizacion", "hora", "causa_inmovilizacion", "descripcion_novedad", "ruta",
+            "operador", "dia_semana", "alerta", "franja_horaria")
 
 
 @router.get("/dpv")
 def listar_dpv(limit: int = Query(100, ge=1, le=100000), offset: int = Query(0, ge=0),
+               mes: Optional[str] = None, slim: bool = False,
                db: Session = Depends(get_db), user: Dict = Depends(get_current_user)):
     q = db.query(DpvRegistroDB)
-    total = q.count()
-    items = q.order_by(DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc()) \
-             .offset(offset).limit(limit).all()
-    return {"total": total, "items": [row_to_dict(i) for i in items]}
 
+    # Filtro por mes ('YYYY-MM'): usa to_mes(), que ya entiende ese formato
+    if mes:
+        d = to_mes(mes)
+        if d:
+            fin = datetime(d.year + (1 if d.month == 12 else 0), d.month % 12 + 1, 1)
+            q = q.filter(DpvRegistroDB.fecha_inmovilizacion >= d,
+                         DpvRegistroDB.fecha_inmovilizacion < fin)
+
+    total = q.count()
+    orden = (DpvRegistroDB.fecha_inmovilizacion.desc(), DpvRegistroDB.id.desc())
+
+    if slim:
+        cols = [getattr(DpvRegistroDB, c) for c in DPV_SLIM]
+        filas = q.with_entities(*cols).order_by(*orden).offset(offset).limit(limit).all()
+        items = [
+            {c: (v.isoformat() if isinstance(v, (datetime, date)) else v)
+             for c, v in zip(DPV_SLIM, f)}
+            for f in filas
+        ]
+    else:
+        items = [row_to_dict(i) for i in q.order_by(*orden).offset(offset).limit(limit).all()]
+
+    # La regla «¿cuenta como inmovilización?» vive en el backend (dpv_reglas): el tablero la lee, no la reimplementa
+    for it in items:
+        it["cuenta"] = reglas.es_inmovilizacion(it.get("estado"))
+
+    return {"total": total, "items": items}
 
 # ═══════════════════════════════════════════════════════════
 #  ICO
@@ -582,11 +647,38 @@ def obtener_disponibilidad(db: Session = Depends(get_db), user: Dict = Depends(g
 
 # ═══════════════════════════════════════════════════════════
 #  DPV MENSUAL (kilometraje)
+#  Los km oficiales de cada mes van en dpv_km_mensual (carga del Excel o captura manual). Las inmovilizaciones y el
+#  DPV se calculan SIEMPRE en vivo desde los eventos (dpv_registros) con dpv_reglas.py: si un evento pasa a
+#  «Contestado Contundente», el DPV del mes se actualiza solo.
 # ═══════════════════════════════════════════════════════════
+
+def num_o_none(v: Any) -> Optional[float]:
+    """Número de una celda: int/float tal cual; texto '1.234.567,5' (es-CO) o '1,234,567.5'. Vacío o inválido → None."""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = str(v).strip().replace(" ", "")
+    if not t:
+        return None
+    if re.fullmatch(r"\d{1,3}(\.\d{3})+(,\d+)?", t):
+        t = t.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", t):
+        t = t.replace(",", "")
+    else:
+        t = t.replace(",", ".")
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
 
 @router.post("/dpv-mensual/upload")
 async def upload_dpv_mensual(file: UploadFile = File(...), db: Session = Depends(get_db),
                              user: Dict = Depends(get_current_admin_user)):
+    """Hojas DPV_E10 y DPV_E16. Entiende el diseño nuevo (MES, TOTAL KM, KM PADRON, KM BUSETON, TOTAL INNMOVILIZADOS…)
+    y el anterior (DVP_E10, No VARADOS, KMS…). Los meses sin km (p. ej. los que aún no se han cerrado) se omiten:
+    no son cero kilómetros."""
     t0 = time.time()
     wb = await leer_excel(file, solo_xlsx=True)
     hojas = {norm_header(n).replace(" ", "_"): n for n in wb.sheetnames}
@@ -597,15 +689,53 @@ async def upload_dpv_mensual(file: UploadFile = File(...), db: Session = Depends
 
     ins = upd = total = 0
     errores: List[str] = []
+    advertencias: List[str] = []
+    sin_km: Dict[str, List[str]] = {"E10": [], "E16": []}
+    formatos = set()
     for emp in ("E10", "E16"):
         nombre = hojas.get(f"DPV_{emp}") or hojas.get(f"DVP_{emp}")
         headers, filas = filas_hoja(wb[nombre])
+        nuevo = "TOTAL KM" in headers or "KM TOTAL" in headers
+        formatos.add("nuevo" if nuevo else "anterior")
+        existentes = ({r.mes: r for r in db.query(DpvKmMensualDB).filter(DpvKmMensualDB.empresa == emp).all()}
+                      if nuevo else {})
         for n, row in enumerate(filas, start=2):
             total += 1
             mes = to_mes(pick(row, "MES", "FECHA"))
             if not mes:
                 errores.append(f"Hoja {nombre}, fila {n}: MES/FECHA no reconocido")
                 continue
+            etiqueta = mes.strftime("%Y-%m")
+
+            if nuevo:
+                km = num_o_none(pick(row, "TOTAL KM", "KM TOTAL"))
+                if not km or km <= 0:
+                    sin_km[emp].append(etiqueta)
+                    continue
+                km_p, km_b = num_o_none(pick(row, "KM PADRON")), num_o_none(pick(row, "KM BUSETON"))
+                if km_p is not None and km_b is not None and abs(km_p + km_b - km) > max(1.0, km * 0.01):
+                    advertencias.append(f"{emp} {etiqueta}: KM PADRON + KM BUSETON ({km_p + km_b:,.0f}) no coincide con TOTAL KM ({km:,.0f})")
+                datos = {
+                    "km_total": km, "km_padron": km_p, "km_buseton": km_b,
+                    "inm_excel": to_int(pick(row, "TOTAL INNMOVILIZADOS", "TOTAL INMOVILIZADOS", "TOTAL INNMOVILIZADO",
+                                             "TOTAL INMOVILIZADO", "NO VARADOS"), None),
+                    "dpv_excel": num_o_none(pick(row, "DPV GENERAL", f"DPV {emp}", f"DVP {emp}")),
+                    "fuente": "excel", "updated_by": username(user),
+                }
+                obj = existentes.get(mes)
+                if obj:
+                    for k, v in datos.items():
+                        setattr(obj, k, v)
+                    obj.updated_at = datetime.utcnow()
+                    upd += 1
+                else:
+                    obj = DpvKmMensualDB(empresa=emp, mes=mes, **datos)
+                    db.add(obj)
+                    existentes[mes] = obj
+                    ins += 1
+                continue
+
+            # ── Diseño anterior: se guarda tal cual en dpv_mensual (solo si el mes trae algún dato) ──
             datos = {
                 "fecha_texto": to_str(pick(row, "FECHA"), 100),
                 "dpv_general": to_int(pick(row, f"DVP {emp}", f"DPV {emp}", "DPV GENERAL", "DPV")),
@@ -616,6 +746,9 @@ async def upload_dpv_mensual(file: UploadFile = File(...), db: Session = Depends
                 "padron": to_int(pick(row, "PADRON")),
                 "buseton": to_int(pick(row, "BUSETON")),
             }
+            if not datos["dpv_general"] and not datos["kms"]:
+                sin_km[emp].append(etiqueta)
+                continue
             obj = db.query(DpvMensualDB).filter(DpvMensualDB.empresa == emp, DpvMensualDB.mes == mes).first()
             if obj:
                 for k, v in datos.items():
@@ -634,23 +767,104 @@ async def upload_dpv_mensual(file: UploadFile = File(...), db: Session = Depends
 
     seg = time.time() - t0
     registrar_historial(db, "dpv_mensual", user, file.filename, total, ins, upd, len(errores), seg, "\n".join(errores[:50]))
-    return respuesta(total, ins, upd, errores, seg)
+    return respuesta(total, ins, upd, errores, seg, {
+        "formato": "nuevo" if formatos == {"nuevo"} else "anterior" if formatos == {"anterior"} else "mixto",
+        "sin_km": sin_km, "advertencias": advertencias[:20],
+    })
+
+
+def _serie_dpv(db: Session) -> Dict[str, Any]:
+    """Serie mensual por unidad: km cargados + inmovilizaciones calculadas en vivo desde los eventos."""
+    filas = db.query(DpvRegistroDB.fecha_inmovilizacion, DpvRegistroDB.empresa, DpvRegistroDB.movil,
+                     DpvRegistroDB.tipologia, DpvRegistroDB.estado) \
+              .filter(DpvRegistroDB.fecha_inmovilizacion.isnot(None)).all()
+    mapa = reglas.agregar_inmovilizaciones(filas)
+    km: Dict[str, List[Dict[str, Any]]] = {"E10": [], "E16": []}
+    for r in db.query(DpvKmMensualDB).order_by(DpvKmMensualDB.mes.asc()).all():
+        if r.empresa in km:
+            km[r.empresa].append({
+                "mes": r.mes.strftime("%Y-%m"), "km_total": r.km_total, "km_padron": r.km_padron,
+                "km_buseton": r.km_buseton, "inm_excel": r.inm_excel, "dpv_excel": r.dpv_excel,
+                "fuente": r.fuente or "excel",
+            })
+    legado: Dict[str, List[Dict[str, Any]]] = {"E10": [], "E16": []}
+    for r in db.query(DpvMensualDB).order_by(DpvMensualDB.mes.asc()).all():
+        if r.empresa in legado:
+            legado[r.empresa].append({"mes": r.mes.strftime("%Y-%m"), "dpv": r.dpv_general,
+                                      "kms": r.kms, "varados": r.no_varados})
+    return {
+        "e10": reglas.serie_mensual("E10", km["E10"], mapa, legado["E10"]),
+        "e16": reglas.serie_mensual("E16", km["E16"], mapa, legado["E16"]),
+        "umbrales": {"estandar": reglas.ESTANDAR_KM, "critico": reglas.CRITICO_KM},
+        "estados_descartados": list(reglas.ESTADOS_DESCARTADOS_TXT),     # estados que NO cuentan como inmovilización
+    }
 
 
 @router.get("/dpv-mensual")
 def obtener_dpv_mensual(db: Session = Depends(get_db), user: Dict = Depends(get_current_user)):
-    out: Dict[str, List[Dict[str, Any]]] = {"e10": [], "e16": []}
-    for r in db.query(DpvMensualDB).order_by(DpvMensualDB.mes.asc()).all():
-        key = (r.empresa or "").lower()
-        if key not in out:
-            continue
-        out[key].append({
-            "mes": r.mes.strftime("%Y-%m"),
-            "mes_label": f"{MES_LABEL[r.mes.month - 1]} {r.mes.strftime('%y')}",
-            "dpv": r.dpv_general, "estandar": r.dpv_estandar, "critico": r.dpv_critico,
-            "varados": r.no_varados, "kms": r.kms, "padron": r.padron, "buseton": r.buseton,
-        })
-    return out
+    return _serie_dpv(db)
+
+
+class KmMensualIn(BaseModel):
+    empresa: str                          # 'E10' | 'E16'
+    mes: str                              # 'YYYY-MM'
+    km_total: float
+    km_padron: Optional[float] = None
+    km_buseton: Optional[float] = None
+
+
+@router.put("/dpv-km")
+def guardar_km_mensual(body: KmMensualIn, db: Session = Depends(get_db),
+                       user: Dict = Depends(get_current_admin_user)):
+    """Captura manual del km oficial de un mes (útil para los meses que el Excel aún no trae)."""
+    t0 = time.time()
+    emp = (body.empresa or "").strip().upper()
+    if emp not in reglas.UNIDADES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "La unidad debe ser E10 o E16")
+    mes = to_mes(body.mes)
+    if not mes:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Mes no válido (usa AAAA-MM)")
+    total = body.km_total
+    if not total or total <= 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El km total debe ser mayor que 0")
+    for v in (body.km_padron, body.km_buseton):
+        if v is not None and v < 0:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Los km por tipología no pueden ser negativos")
+    if body.km_padron is not None and body.km_buseton is not None \
+            and abs(body.km_padron + body.km_buseton - total) > max(1.0, total * 0.01):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            f"Padrón + Buseton ({body.km_padron + body.km_buseton:,.0f}) no coincide con el total ({total:,.0f})")
+
+    obj = db.query(DpvKmMensualDB).filter(DpvKmMensualDB.empresa == emp, DpvKmMensualDB.mes == mes).first()
+    campos = {"km_total": total, "km_padron": body.km_padron, "km_buseton": body.km_buseton,
+              "fuente": "manual", "updated_by": username(user)}
+    if obj:
+        for k, v in campos.items():
+            setattr(obj, k, v)
+        obj.updated_at = datetime.utcnow()
+    else:
+        db.add(DpvKmMensualDB(empresa=emp, mes=mes, **campos))
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error("Error guardando km mensual", exc_info=True)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error guardando en BD: {e}")
+    registrar_historial(db, "dpv_mensual", user, f"Captura manual {emp} {mes.strftime('%Y-%m')}", 1,
+                        0 if obj else 1, 1 if obj else 0, 0, time.time() - t0)
+    return {"empresa": emp, "mes": mes.strftime("%Y-%m"), "actualizado": bool(obj)}
+
+
+@router.delete("/dpv-km/{empresa}/{mes}")
+def borrar_km_mensual(empresa: str, mes: str, db: Session = Depends(get_db),
+                      user: Dict = Depends(get_current_admin_user)):
+    emp, m = (empresa or "").strip().upper(), to_mes(mes)
+    if emp not in reglas.UNIDADES or not m:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unidad o mes no válidos")
+    n = db.query(DpvKmMensualDB).filter(DpvKmMensualDB.empresa == emp, DpvKmMensualDB.mes == m) \
+          .delete(synchronize_session=False)
+    db.commit()
+    return {"eliminado": bool(n)}
 
 
 # ═══════════════════════════════════════════════════════════
