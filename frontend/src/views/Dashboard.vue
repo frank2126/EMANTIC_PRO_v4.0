@@ -40,6 +40,10 @@
           <span>🚌</span> Disponibilidad
           <span class="tab-count">{{ disponibilidadTotal }}</span>
         </button>
+        <button class="tab-btn tab-btn--inmov" :class="{active: activeTab==='inmovilizados'}" @click="activeTab='inmovilizados'">
+          <span>🛠️</span> Inmovilizados
+          <span class="tab-count">{{ store.inmov.cargado ? store.inmovAbiertos : '…' }}</span>
+        </button>
       </div>
 
       <!-- ── DISPONIBILIDAD DE FLOTA ── -->
@@ -87,6 +91,7 @@
       <DashboardDPV v-show="activeTab === 'dpv'" />
       <DashboardICO v-if="visitados.ico" v-show="activeTab === 'ico'" />
       <DashboardDisponibilidad v-if="visitados.disponibilidad" v-show="activeTab === 'disponibilidad'" />
+      <DashboardInmovilizados v-if="visitados.inmovilizados" v-show="activeTab === 'inmovilizados'" />
     </template>
 
   </div>
@@ -99,12 +104,13 @@ import DashboardSkeleton from './DashboardSkeleton.vue'
 import DashboardDPV from './DashboardDPV.vue'
 import DashboardICO from './DashboardICO.vue'
 import DashboardDisponibilidad from './DashboardDisponibilidad.vue'
+import DashboardInmovilizados from './DashboardInmovilizados.vue'
 
 const store     = useDashboardStore()
 const activeTab = ref('dpv')
 
-// Las pestañas ICO y Disponibilidad se montan solo la primera vez que se visitan
-const visitados = reactive({ ico: false, disponibilidad: false })
+// Las pestañas ICO, Disponibilidad e Inmovilizados se montan solo la primera vez que se visitan
+const visitados = reactive({ ico: false, disponibilidad: false, inmovilizados: false })
 watch(activeTab, t => { if (t in visitados) visitados[t] = true }, { immediate: true })
 
 // Skeleton solo mientras llega la primera respuesta
@@ -117,6 +123,7 @@ const fechaHoy = new Date().toLocaleDateString('es-CO', {
 const tituloHeader = computed(() => {
   if (activeTab.value === 'dpv') return 'No. Eventos en Vía'
   if (activeTab.value === 'ico') return 'No. Eventos ICO'
+  if (activeTab.value === 'inmovilizados') return 'Móviles Inmovilizados'
   return 'Disponibilidad de Flota'
 })
 
@@ -193,6 +200,7 @@ onMounted(() => {
   background:rgba(255,255,255,0.25); color:#fff;
 }
 .tab-btn:not(.active) .tab-count { background:var(--primary-light); color:var(--primary); }
+.tab-btn--inmov.active { background:#a85a08; border-color:#a85a08; box-shadow:0 2px 8px rgba(217,119,6,0.35); }
 .tab-btn--disp.active { background:var(--secondary); border-color:var(--secondary); box-shadow:0 2px 8px rgba(7,78,122,0.35); }
 
 .reload-btn {

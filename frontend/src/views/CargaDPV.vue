@@ -5,6 +5,107 @@
       <span class="badge badge-info">Solo Administrador</span>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════
+         INMOVILIZADOS (se actualiza cada hora)
+    ══════════════════════════════════════════════════════ -->
+    <section class="card upload-card inm-card" aria-labelledby="t-inm">
+      <div class="inm-cab">
+        <h2 class="card-title" id="t-inm"><span aria-hidden="true">🛠️</span> Inmovilizados <small class="inm-sub">se actualiza cada hora</small></h2>
+        <div class="inm-fresco" aria-live="polite">
+          <span v-for="f in frescuraInm" :key="f.key" class="fr-item" :title="f.titulo">
+            <span class="fr-dot" :class="'fr-' + f.nivel" aria-hidden="true"></span>{{ f.nombre }} {{ f.texto }}
+          </span>
+        </div>
+      </div>
+      <p class="upload-hint">
+        Sube el Excel del reporte «Vehículos inmovilizados por concesionario de operación» (<code>.xlsx</code>, máx. <strong>{{ MAX_MB }} MB</strong>).
+        Cada fila se identifica por placa + fecha de inmovilización: las nuevas se agregan y, cuando el siguiente archivo trae la
+        fecha de habilitación, el móvil pasa a «habilitado».
+      </p>
+
+      <label class="drop-zone drop-compacta"
+        :class="{ 'drop-active': inm.arrastrado, 'drop-ok': inm.archivo, 'drop-err': inm.error }"
+        @dragover.prevent="inm.arrastrado = true"
+        @dragleave="inm.arrastrado = false"
+        @drop.prevent="soltar(inm, $event)">
+        <input type="file" class="sr-only" accept=".xlsx" aria-label="Elegir el Excel de inmovilizados"
+          @change="elegir(inm, $event.target.files[0]); $event.target.value = ''" />
+        <span v-if="!inm.archivo" class="drop-content">
+          <span class="drop-main">Arrastra el Excel de inmovilizados aquí</span>
+          <span class="drop-sub">o haz clic para seleccionarlo</span>
+        </span>
+        <span v-else class="drop-content">
+          <span class="drop-main">✅ {{ inm.archivo.name }}</span>
+          <span class="drop-sub">{{ (inm.archivo.size / 1024).toFixed(0) }} KB</span>
+        </span>
+      </label>
+
+      <p v-if="inm.error" class="err-msg" role="alert">⚠️ {{ inm.error }}</p>
+
+      <div v-if="inm.cargando" class="progress-wrap">
+        <div class="progress-bar" role="progressbar" aria-label="Avance de la carga" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="inm.progreso">
+          <div class="progress-fill" :style="{ width: inm.progreso + '%' }"></div>
+        </div>
+        <span class="progress-label">Procesando... {{ inm.progreso }}%</span>
+      </div>
+
+      <div class="form-actions inm-acciones">
+        <!-- Botón sutil: cuando en la hora no hubo novedades -->
+        <button type="button" class="btn-sutil" :disabled="inmSN.enviando || inm.cargando" @click="sinNovedades"
+          title="Úsalo cuando en esta hora no hubo cambios: deja constancia de que la información sigue al día, sin subir otro Excel">
+          {{ inmSN.enviando ? 'Registrando…' : '✓ Sin novedades esta hora' }}
+        </button>
+        <span class="inm-espacio"></span>
+        <button type="button" class="btn-secondary" :disabled="inm.cargando" @click="limpiar(inm)">Limpiar</button>
+        <button type="button" class="btn-primary" :disabled="inm.cargando || !inm.archivo" @click="subir(inm, '/api/inmovilizados/upload', alCargarInmov)">
+          {{ inm.cargando ? 'Procesando...' : '⬆ Procesar inmovilizados' }}
+        </button>
+      </div>
+      <p v-if="inmSN.ok" class="ok-msg inm-ok" role="status">✔ {{ inmSN.ok }}</p>
+      <p v-if="inmSN.error" class="err-msg" role="alert">⚠️ {{ inmSN.error }}</p>
+
+      <!-- Resultado en una línea; los avisos solo aparecen si hay algo que revisar -->
+      <div v-if="inm.resultado" class="inm-res" role="status" aria-label="Resultado de la carga de inmovilizados">
+        <p class="res-linea" :class="inm.resultado.errores > 0 ? 'res-warn' : 'res-ok'">
+          {{ resumenInm }}
+        </p>
+        <ul v-if="avisosInm.length" class="lista-avisos">
+          <li v-for="a in avisosInm" :key="a">{{ a }}</li>
+        </ul>
+        <div v-if="inm.resultado.errores_detalle && inm.resultado.errores_detalle.length" class="errores-lista">
+          <h4>Detalle de errores:</h4>
+          <ul>
+            <li v-for="e in inm.resultado.errores_detalle" :key="e">{{ e }}</li>
+            <li v-if="inm.resultado.errores > inm.resultado.errores_detalle.length">
+              …y {{ fmt(inm.resultado.errores - inm.resultado.errores_detalle.length) }} más
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <details class="inm-hist">
+        <summary>Historial de cargas de inmovilizados</summary>
+        <p v-if="inm.historial.length === 0" class="upload-hint">Sin cargas registradas</p>
+        <div v-else class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Archivo</th><th>Filas</th><th>Nuevos</th><th>Actualizados</th><th>Errores</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr v-for="h in inm.historial" :key="h.id">
+                <td>{{ h.fecha }}</td>
+                <td>{{ h.usuario }}</td>
+                <td class="td-archivo">{{ h.archivo }}</td>
+                <td>{{ fmt(h.total) }}</td>
+                <td class="td-green">{{ fmt(h.insertados) }}</td>
+                <td class="td-blue">{{ fmt(h.actualizados) }}</td>
+                <td :class="h.errores > 0 ? 'td-red' : ''">{{ fmt(h.errores) }}</td>
+                <td><span class="badge" :class="ESTADO_BADGE[h.estado] || 'badge-danger'">{{ h.estado }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
     <section class="card guia" aria-label="Cómo se calcula el DPV">
       <p>
         El DPV de cada mes es <strong>los km del mes ÷ las inmovilizaciones del mes</strong>, y necesita dos cosas:
@@ -13,6 +114,8 @@
         sin volver a subir nada. El mismo libro de Excel sirve para los dos pasos.
       </p>
     </section>
+
+    <BotDpvPanel @listo="alCargarEventos" />
 
     <!-- ══════════════════════════════════════════════════════
          PASO 1: EVENTOS DE INMOVILIZACIÓN
@@ -396,12 +499,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import {
   UNIDADES_CARGA, FORMATO_MENSUAL, NIVEL, fmtKm, tituloMes,
   filasKm, resumenSinKm, avisosCalidad, validarKmManual, numeroDeTexto, mensajeError,
 } from './dpvUtils.js'
+
+import { UNIDADES as UNIDADES_INM, frescura, fmtHoras } from './inmovUtils.js'
+import BotDpvPanel from './BotDpvPanel.vue'
 
 const MAX_MB = 10   // mismo límite que el backend (MAX_FILE_MB en routes/datos.py)
 const fmt = n => (n == null ? '—' : Number(n).toLocaleString('es-CO'))
@@ -417,6 +523,7 @@ const nuevaCarga = (extensiones) => reactive({
 })
 const eventos = nuevaCarga(['xlsx', 'xlsm'])
 const kmMes = nuevaCarga(['xlsx'])
+const inm = nuevaCarga(['xlsx'])
 
 function elegir(c, f) {
   c.error = ''
@@ -461,6 +568,77 @@ async function cargarHistorial(c, tipo) {
     c.historial = data
   } catch { /* el historial es informativo: si falla no estorba */ }
 }
+
+// ── Inmovilizados: estado de la información + «Sin novedades» + resultado de la carga ──
+const cortesInm = ref({ E10: null, E16: null })
+const inmSN = reactive({ enviando: false, ok: '', error: '' })
+const ahoraInm = ref(Date.now())
+let relojInm = null
+
+async function cargarCortesInm() {
+  try {
+    const { data } = await axios.get('/api/inmovilizados', { params: { limit: 1 } })
+    cortesInm.value = { E10: (data.cortes && data.cortes.E10) || null, E16: (data.cortes && data.cortes.E16) || null }
+  } catch { /* el estado es informativo: si falla no estorba */ }
+}
+
+const frescuraInm = computed(() => UNIDADES_INM.map(u => {
+  const corte = cortesInm.value[u.key]
+  const f = frescura(corte && corte.ultimo, ahoraInm.value)
+  const titulo = corte && corte.ultimo
+    ? `Último corte: ${new Date(corte.ultimo.creado).toLocaleString('es-CO')} (${corte.ultimo.tipo === 'sin_novedades' ? 'sin novedades' : 'archivo cargado'})`
+    : 'Todavía no se ha cargado nada'
+  return { key: u.key, nombre: u.nombre, nivel: f.nivel, texto: f.texto, titulo }
+}))
+
+// Después de subir el Excel: historial y estado de la información al día
+const alCargarInmov = () => Promise.all([cargarHistorial(inm, 'inmovilizados'), cargarCortesInm()])
+
+async function sinNovedades() {
+  if (inmSN.enviando) return
+  inmSN.enviando = true
+  inmSN.ok = ''
+  inmSN.error = ''
+  try {
+    const { data } = await axios.post('/api/inmovilizados/sin-novedades', {})
+    cortesInm.value = { E10: (data.cortes && data.cortes.E10) || null, E16: (data.cortes && data.cortes.E16) || null }
+    const sin = (data.sin_carga || []).length ? ` (${data.sin_carga.join(', ')} aún sin Excel cargado)` : ''
+    inmSN.ok = `Registrado: sin novedades en esta hora${sin}.`
+    await cargarHistorial(inm, 'inmovilizados')
+    setTimeout(() => { inmSN.ok = '' }, 6000)
+  } catch (e) {
+    inmSN.error = mensajeError(e, 'No se pudo registrar «Sin novedades»')
+  } finally {
+    inmSN.enviando = false
+  }
+}
+
+const resumenInm = computed(() => {
+  const r = inm.resultado
+  if (!r) return ''
+  const partes = [`${fmt(r.total)} filas`, `${fmt(r.insertados)} nuevas`, `${fmt(r.actualizados)} actualizadas`]
+  if (r.habilitados_nuevos) partes.push(`${fmt(r.habilitados_nuevos)} habilitadas`)
+  if (r.errores) partes.push(`${fmt(r.errores)} con error`)
+  const u = r.unidades || {}
+  const abiertos = Object.keys(u).map(k => `${k} ${u[k].abiertos}`).join(' · ')
+  return `${r.message}: ${partes.join(' · ')}${abiertos ? ` — inmovilizados ahora: ${abiertos}` : ''}.`
+})
+
+// Solo lo que merece revisión: móviles que ya no vienen, sin número de móvil, habilitaciones que se deshicieron, avisos de datos
+const avisosInm = computed(() => {
+  const r = inm.resultado
+  if (!r) return []
+  const out = []
+  const nv = r.no_vistos
+  if (nv && nv.total) {
+    const lista = (nv.lista || []).map(o => o.movil || o.placa).join(', ')
+    out.push(`${nv.total} ${nv.total === 1 ? 'móvil sin habilitar ya no aparece' : 'móviles sin habilitar ya no aparecen'} en este archivo y quedan «sin confirmar»${lista ? ': ' + lista : ''}.`)
+  }
+  if (r.sin_movil && r.sin_movil.length) out.push(`Sin número de móvil (no está en el texto ni en el DPV): ${r.sin_movil.join(', ')}.`)
+  if (r.reabiertos && r.reabiertos.length) out.push(`Estaban habilitados y este archivo los trae sin habilitar: ${r.reabiertos.join(', ')}.`)
+  for (const a of (r.avisos || [])) out.push(a)
+  return out
+})
 
 // ── Serie mensual (km guardados + inmovilizaciones y DPV calculados con los eventos) ──
 const mensual = ref(null)
@@ -578,10 +756,14 @@ async function borrarKm(f) {
 }
 
 onMounted(() => {
+  cargarHistorial(inm, 'inmovilizados')
+  cargarCortesInm()
+  relojInm = setInterval(() => { ahoraInm.value = Date.now() }, 30000)
   cargarHistorial(eventos, 'dpv')
   cargarHistorial(kmMes, 'dpv_mensual')
   cargarMensual()
 })
+onUnmounted(() => clearInterval(relojInm))
 </script>
 
 <style scoped>
@@ -710,4 +892,30 @@ onMounted(() => {
   .campo-acciones { justify-content: stretch; }
   .campo-acciones button { flex: 1; justify-content: center; }
 }
+
+/* ── Inmovilizados (carga horaria) ── */
+.inm-card { padding: 22px 24px; }
+.inm-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.inm-sub { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.inm-fresco { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-muted); padding-top: 2px; }
+.fr-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.fr-dot { width: 7px; height: 7px; border-radius: 50%; background: #9ca3af; flex: none; }
+.fr-al_dia { background: var(--accent); }
+.fr-atrasado { background: var(--warning); }
+.fr-vencido { background: var(--danger); }
+.drop-compacta { padding: 14px 18px; }
+.inm-acciones { align-items: center; flex-wrap: wrap; }
+.inm-espacio { flex: 1; }
+.btn-sutil {
+  background: transparent; border: none; padding: 6px 4px; font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--text-muted); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+}
+.btn-sutil:hover:not(:disabled) { color: var(--primary); }
+.btn-sutil:disabled { opacity: .5; cursor: not-allowed; }
+.inm-ok { margin: 4px 0 0; font-size: 12px; }
+.inm-res { margin-top: 12px; }
+.res-linea { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+.inm-hist { margin-top: 14px; font-size: 12.5px; color: var(--text-muted); }
+.inm-hist summary { cursor: pointer; font-weight: 600; }
+.inm-hist .table-wrap { margin-top: 10px; }
 </style>

@@ -215,6 +215,47 @@ class DpvKmMensualDB(Base):
 
     __table_args__ = (UniqueConstraint('empresa', 'mes', name='uq_dpv_km_mensual_empresa_mes'),)
 
+class InmovRegistroDB(Base):
+    """Una inmovilización del reporte «Vehículos inmovilizados por concesionario» (se carga cada hora).
+
+    Se identifica por placa + fecha de inmovilización. Sin fecha_habilitacion el móvil sigue inmovilizado.
+    Tabla nueva: init_db() la crea sola al reiniciar.
+    """
+    __tablename__ = "inmovilizados"
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+    unidad               = Column(String(10),  nullable=False, index=True)    # 'E10' | 'E16'
+    empresa              = Column(String(200), default="")                    # concesionario tal como vino
+    placa                = Column(String(20),  nullable=False, index=True)
+    movil                = Column(String(20),  default="")                    # 'Z32-7054'
+    fecha_inmovilizacion = Column(DateTime, nullable=False, index=True)
+    causa                = Column(String(300), default="")
+    descripcion          = Column(Text, default="")
+    creador              = Column(String(200), default="")
+    fecha_revision       = Column(DateTime, nullable=True)
+    revisor              = Column(String(200), default="")
+    descripcion_revision = Column(Text, default="")                           # la nota con la que se habilita
+    fecha_habilitacion   = Column(DateTime, nullable=True, index=True)
+    habilitador          = Column(String(200), default="")
+    ultima_vista         = Column(DateTime, nullable=True)                    # última carga de Excel en la que apareció
+    created_at           = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at           = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('placa', 'fecha_inmovilizacion', name='uq_inmov_placa_fecha'),)
+
+class InmovCorteDB(Base):
+    """Cada vez que se actualiza la información de una unidad: una carga de Excel o el botón «Sin novedades».
+    El último corte dice qué tan al día está el tablero y cuál es la foto vigente de los inmovilizados."""
+    __tablename__ = "inmovilizados_cortes"
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    unidad        = Column(String(10), nullable=False, index=True)            # 'E10' | 'E16'
+    tipo          = Column(String(20), default="carga")                       # 'carga' (Excel) | 'sin_novedades'
+    fecha_archivo = Column(DateTime, nullable=True)                           # hora de exportación (viene en el nombre del Excel)
+    archivo       = Column(String(300), default="")
+    usuario       = Column(String(100), default="")
+    total         = Column(Integer, default=0)                                # filas de la unidad en el archivo
+    abiertos      = Column(Integer, default=0)                                # inmovilizados sin habilitar en ese momento
+    created_at    = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
 class DisponibilidadDB(Base):
     __tablename__ = "disponibilidad"
     id                   = Column(Integer, primary_key=True, autoincrement=True)

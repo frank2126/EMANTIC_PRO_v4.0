@@ -8,6 +8,8 @@ import {
 } from './icoUtils.js'
 // DPV: misma mecánica que ICO (slicers + selección cruzada); la lógica pura vive en dpvUtils.js
 import * as DPV from './dpvUtils.js'
+// Inmovilizados: reporte horario de Transmitools (lógica pura en inmovUtils.js)
+import { normInmov, ESTADO as INM_ESTADO } from './inmovUtils.js'
 
 // Eventos del DPV tal como llegan del backend → filas del tablero (y se unifican las causas recortadas por el Excel)
 const prepararDPV = items => DPV.unificarCausas((items || []).map(DPV.normDPV))
@@ -79,6 +81,9 @@ export const useDashboardStore = defineStore('dashboard', {
 
     disponibilidad: { e10: null, e16: null },
 
+    // ── Inmovilizados: eventos con su estado + último corte de cada unidad (qué tan al día está la información) ──
+    inmov: { items: [], cortes: { E10: null, E16: null }, cargado: false, error: '' },
+
     // ── DPV mensual = km ÷ inmovilizaciones, una serie por unidad (la calcula el backend: /api/dpv-mensual) ──
     dpvMensual: {
       e10: [],   // [{ mes, mes_label, km, inm, dpv, km_padron, inm_padron, dpv_padron, …, nivel, origen }]
@@ -99,6 +104,11 @@ export const useDashboardStore = defineStore('dashboard', {
   }),
 
   getters: {
+
+    // Móviles inmovilizados ahora (número de la pestaña)
+    inmovAbiertos(state) {
+      return state.inmov.items.filter(e => e.estado === INM_ESTADO.INMOVILIZADO).length
+    },
 
     // ══════════════════════════════════════════════════════════
     //  DPV — filtros duros (slicers) + selección cruzada estilo Power BI
@@ -482,9 +492,11 @@ export const useDashboardStore = defineStore('dashboard', {
     // ── FASE 1: solo el mes en curso (rápido) ──────────────
     // Si ya hay datos en pantalla (botón «Recargar»), no se encoge primero al mes en curso: se refresca todo de una vez.
     async cargarDatos() {
+      if (this.loading) return   // ya hay una carga en curso (p. ej. la pidieron a la vez el contenedor y la pestaña)
       this.loading = true
       this.error   = null
       const primeraVez = !this.dpvRaw.length
+      let histCargado = false   // true si el histórico completo ya se pidió dentro de esta fase
       try {
         if (primeraVez) {
           this.dpvCompleto = false
@@ -494,6 +506,9 @@ export const useDashboardStore = defineStore('dashboard', {
           this.dpvRaw   = prepararDPV(data?.items)
           this.lastSync = new Date().toLocaleString('es-CO')
           if (!this.dpvInicializado) this.aplicarPorDefectoDPV()
+          // Si el mes en curso aún no tiene eventos no se deja la pantalla vacía: se espera el histórico completo
+          // (mientras tanto sigue el esqueleto de carga) y el filtro inicial queda en el último mes con datos.
+          if (!this.dpvRaw.length) { await this.cargarDpvCompleto(); histCargado = true }
         } else {
           await this.cargarDpvCompleto()
           this.lastSync = new Date().toLocaleString('es-CO')
@@ -506,10 +521,11 @@ export const useDashboardStore = defineStore('dashboard', {
       }
 
       // ── FASE 2: en segundo plano, sin bloquear la pantalla ──
-      if (primeraVez) this.cargarDpvCompleto()
+      if (primeraVez && !histCargado) this.cargarDpvCompleto()
       this.cargarIco()
       this.cargarDpvMensual()
       this.cargarDisponibilidad()
+      this.cargarInmovilizados()
     },
 
     async cargarDpvCompleto() {
@@ -545,6 +561,21 @@ export const useDashboardStore = defineStore('dashboard', {
         this.disponibilidad.e16 = data?.e16 || null
       } catch (e) {
         console.error('[Store] Error cargando disponibilidad:', e)
+      }
+    },
+
+    // Inmovilizados: la pestaña lo vuelve a pedir cada pocos minutos porque el reporte se carga cada hora
+    async cargarInmovilizados() {
+      try {
+        const { data } = await axios.get('/api/inmovilizados', { params: { limit: 20000 } })
+        this.inmov.items = (data?.items || []).map(normInmov)
+        this.inmov.cortes = { E10: data?.cortes?.E10 || null, E16: data?.cortes?.E16 || null }
+        this.inmov.error = ''
+        this.inmov.cargado = true
+      } catch (e) {
+        // Si ya había datos se conservan; solo se avisa en la pestaña
+        this.inmov.error = e.response?.data?.detail || e.message
+        console.error('[Store] Error cargando inmovilizados:', e)
       }
     },
 

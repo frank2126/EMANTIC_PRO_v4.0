@@ -1,13 +1,13 @@
-{
+{ 
   "name": "emantix-pro",
   "version": "4.0.0",
   "private": true,
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview",
-  "test": "node --test tests/dpvUtils.test.mjs"
-},
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/dpvUtils.test.mjs tests/inmovUtils.test.mjs"
+  },
   "dependencies": {
     "axios": "^1.7.0",
     "pinia": "^4.0.2",

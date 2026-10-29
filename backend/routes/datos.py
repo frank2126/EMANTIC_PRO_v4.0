@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 #  EMANTIX PRO — Rutas de datos operativos
-#  DPV, ICO, Disponibilidad de flota, DPV mensual e historial de cargas
+#  DPV, ICO, Disponibilidad de flota, DPV mensual, Inmovilizados e historial de cargas
 #  (endpoints consumidos por CargaDPV.vue, IndicadoresICO.vue y dashboardStore.js)
 # ═══════════════════════════════════════════════════════════
 
@@ -20,8 +20,10 @@ from sqlalchemy.orm import Session
 
 from config import settings          # antes que dpv_reglas: config.py carga el .env (umbrales DPV_*)
 import dpv_reglas as reglas
+import inmov_reglas as inmov
 from database import (
     DpvRegistroDB, IcoRegistroDB, DisponibilidadDB, DpvMensualDB, DpvKmMensualDB, CargaHistorialDB,
+    InmovRegistroDB, InmovCorteDB,
 )
 from deps import get_db, get_current_user, get_current_admin_user
 
@@ -865,6 +867,245 @@ def borrar_km_mensual(empresa: str, mes: str, db: Session = Depends(get_db),
           .delete(synchronize_session=False)
     db.commit()
     return {"eliminado": bool(n)}
+
+
+# ═══════════════════════════════════════════════════════════
+#  INMOVILIZADOS
+#  Reporte «Vehículos inmovilizados por concesionario de operación» (Transmitools), que se exporta cada hora.
+#  Reglas en inmov_reglas.py. Cada carga (o «Sin novedades») deja un corte por unidad: el último corte dice qué tan al día
+#  está la información y cuál es la foto vigente de los móviles inmovilizados.
+# ═══════════════════════════════════════════════════════════
+
+INMOV_COLS = {
+    "concesionario": ("CONCESIONARIO DE OPERACION", "CONCESIONARIO"),
+    "placa": ("PLACA",),
+    "fecha_inmovilizacion": ("FECHA DE INMOVILIZACION", "FECHA INMOVILIZACION"),
+    "causa": ("CAUSA DE INMOVILIZACION", "CAUSA INMOVILIZACION"),
+    "descripcion": ("DESCRIPCION DE LA NOVEDAD", "DESCRIPCION NOVEDAD"),
+    "creador": ("CREADOR",),
+    "fecha_revision": ("FECHA DE REVISION",),
+    "revisor": ("REVISOR",),
+    "descripcion_revision": ("DESCRIPCION DE REVISION",),
+    "fecha_habilitacion": ("FECHA DE HABILITACION",),
+    "habilitador": ("HABILITADOR",),
+}
+INMOV_REQUERIDAS = ["CONCESIONARIO DE OPERACION", "PLACA", "FECHA DE INMOVILIZACION"]
+INMOV_HOJAS = ("SHEET1", "INMOVILIZADOS", "HOJA1")
+
+
+def _ahora_utc() -> datetime:
+    return datetime.utcnow().replace(microsecond=0)
+
+
+def _utc_z(d: Optional[datetime]) -> Optional[str]:
+    """Las horas de los cortes se guardan en UTC: se envían con «Z» para que el navegador las pase a su hora local."""
+    return d.isoformat() + "Z" if d else None
+
+
+def _ultimo_corte(db: Session, unidad: str, solo_carga: bool = False):
+    q = db.query(InmovCorteDB).filter(InmovCorteDB.unidad == unidad)
+    if solo_carga:
+        q = q.filter(InmovCorteDB.tipo == "carga")
+    return q.order_by(InmovCorteDB.created_at.desc(), InmovCorteDB.id.desc()).first()
+
+
+def _corte_json(c) -> Optional[Dict[str, Any]]:
+    if not c:
+        return None
+    return {
+        "tipo": c.tipo, "creado": _utc_z(c.created_at), "usuario": c.usuario, "archivo": c.archivo,
+        "fecha_archivo": c.fecha_archivo.strftime("%Y-%m-%d %H:%M:%S") if c.fecha_archivo else None,
+        "total": c.total, "abiertos": c.abiertos,
+    }
+
+
+def _cortes_json(db: Session) -> Dict[str, Any]:
+    return {u: {"ultimo": _corte_json(_ultimo_corte(db, u)), "carga": _corte_json(_ultimo_corte(db, u, True))}
+            for u in inmov.UNIDADES}
+
+
+@router.post("/inmovilizados/upload")
+async def upload_inmovilizados(file: UploadFile = File(...), db: Session = Depends(get_db),
+                               user: Dict = Depends(get_current_admin_user)):
+    """Carga el Excel horario. Cada fila se identifica por placa + fecha de inmovilización: las nuevas se agregan y las que
+    ya estaban se actualizan (así un evento sin habilitar pasa a «habilitado» cuando el siguiente archivo trae la fecha)."""
+    t0 = time.time()
+    wb = await leer_excel(file, solo_xlsx=True)
+    hoja, headers, filas = hoja_con_columnas(wb, INMOV_REQUERIDAS, INMOV_HOJAS)
+    falta = faltantes(headers, INMOV_REQUERIDAS)
+    if falta:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            f"Faltan columnas requeridas: {', '.join(falta)} (hoja revisada: «{hoja}»)")
+
+    eventos: Dict[Any, Dict[str, Any]] = {}
+    errores: List[str] = []
+    avisos: List[str] = []
+    total = reparados = 0
+    for n, row in enumerate(filas, start=2):
+        total += 1
+        crudo: Dict[str, Any] = {}
+        for campo, keys in INMOV_COLS.items():
+            v = pick(row, *keys)
+            if campo.startswith("fecha"):
+                crudo[campo] = v
+                continue
+            if isinstance(v, str) and fix_mojibake(v) != v:
+                reparados += 1
+            crudo[campo] = to_str(v)
+        ev, error, av = inmov.limpiar_fila(crudo)
+        if error:
+            errores.append(f"Fila {n}: {error}")
+            continue
+        avisos.extend(av)
+        eventos[(ev["placa"], ev["fecha_inmovilizacion"])] = ev
+    if total == 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "El archivo no tiene filas. Si no hubo novedades en esta hora, usa «Sin novedades».")
+
+    # El móvil no es una columna del reporte: si no venía en el texto se busca por placa entre los eventos del DPV
+    sin_movil = sorted({e["placa"] for e in eventos.values() if not e["movil"]})
+    por_placa: Dict[str, str] = {}
+    for i in range(0, len(sin_movil), BATCH):
+        for placa, movil in db.query(DpvRegistroDB.placa, DpvRegistroDB.movil) \
+                              .filter(DpvRegistroDB.placa.in_(sin_movil[i:i + BATCH])).all():
+            if movil:
+                por_placa[inmov.placa_norm(placa)] = inmov.movil_normalizado(movil)
+    movil_por_placa = 0
+    for e in eventos.values():
+        if not e["movil"] and e["placa"] in por_placa:
+            e["movil"] = por_placa[e["placa"]]
+            movil_por_placa += 1
+    sin_movil_final = sorted({e["placa"] for e in eventos.values() if not e["movil"]})
+
+    ahora = _ahora_utc()
+    placas = sorted({k[0] for k in eventos})
+    existentes: Dict[Any, Any] = {}
+    for i in range(0, len(placas), BATCH):
+        for o in db.query(InmovRegistroDB).filter(InmovRegistroDB.placa.in_(placas[i:i + BATCH])).all():
+            existentes[(o.placa, o.fecha_inmovilizacion)] = o
+
+    ins = upd = habilitados_nuevos = 0
+    reabiertos: List[str] = []
+    for k, ev in eventos.items():
+        obj = existentes.get(k)
+        if obj is None:
+            db.add(InmovRegistroDB(**ev, ultima_vista=ahora))
+            ins += 1
+            continue
+        if obj.fecha_habilitacion is None and ev["fecha_habilitacion"] is not None:
+            habilitados_nuevos += 1
+        elif obj.fecha_habilitacion is not None and ev["fecha_habilitacion"] is None:
+            reabiertos.append(f"{ev['placa']} ({ev['fecha_inmovilizacion']:%d/%m/%Y %H:%M})")
+        datos = dict(ev)
+        if not datos["movil"]:
+            datos["movil"] = obj.movil or ""                  # no se pierde un móvil ya conocido
+        for campo, v in datos.items():
+            setattr(obj, campo, v)
+        obj.ultima_vista = ahora
+        obj.updated_at = datetime.utcnow()
+        upd += 1
+
+    unidades: Dict[str, Any] = {}
+    fecha_archivo = inmov.fecha_de_nombre_archivo(file.filename)
+    for u in sorted({e["unidad"] for e in eventos.values()}):
+        de_u = [e for e in eventos.values() if e["unidad"] == u]
+        abiertos = sum(1 for e in de_u if e["fecha_habilitacion"] is None)
+        db.add(InmovCorteDB(unidad=u, tipo="carga", fecha_archivo=fecha_archivo, archivo=(file.filename or "")[:300],
+                            usuario=username(user), total=len(de_u), abiertos=abiertos, created_at=ahora))
+        unidades[u] = {"filas": len(de_u), "abiertos": abiertos}
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error("Error guardando inmovilizados", exc_info=True)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error guardando en BD: {e}")
+
+    # Sin habilitar que ya no aparecen en este archivo: no se dan por habilitados, pero se avisa
+    no_vistos = []
+    for u in unidades:
+        no_vistos += db.query(InmovRegistroDB).filter(
+            InmovRegistroDB.unidad == u, InmovRegistroDB.fecha_habilitacion.is_(None),
+            InmovRegistroDB.ultima_vista < ahora).all()
+
+    seg = time.time() - t0
+    registrar_historial(db, "inmovilizados", user, file.filename, total, ins, upd, len(errores), seg, "\n".join(errores[:50]))
+    return respuesta(total, ins, upd, errores, seg, {
+        "hoja": hoja, "unidades": unidades, "fecha_archivo": fecha_archivo.isoformat() if fecha_archivo else None,
+        "habilitados_nuevos": habilitados_nuevos, "reabiertos": reabiertos[:20],
+        "no_vistos": {"total": len(no_vistos),
+                      "lista": [{"placa": o.placa, "movil": o.movil, "desde": iso(o.fecha_inmovilizacion)} for o in no_vistos[:10]]},
+        "movil_por_placa": movil_por_placa, "sin_movil": sin_movil_final[:20],
+        "calidad": {"textos_reparados": reparados}, "avisos": avisos[:20],
+    })
+
+
+class SinNovedadesIn(BaseModel):
+    unidades: Optional[List[str]] = None          # por defecto las dos
+
+
+@router.post("/inmovilizados/sin-novedades")
+def inmovilizados_sin_novedades(body: SinNovedadesIn, db: Session = Depends(get_db),
+                                user: Dict = Depends(get_current_admin_user)):
+    """«Esta hora no hubo novedades»: deja constancia de que la información sigue al día sin subir otro Excel.
+    La foto vigente no cambia; solo se renueva la hora del último corte."""
+    t0 = time.time()
+    pedidas: List[str] = []
+    for u in (body.unidades or list(inmov.UNIDADES)):
+        u = (u or "").strip().upper()
+        if u not in inmov.UNIDADES:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "La unidad debe ser E10 o E16")
+        if u not in pedidas:
+            pedidas.append(u)
+
+    ahora = _ahora_utc()
+    hechas: List[str] = []
+    sin_carga: List[str] = []
+    for u in pedidas:
+        ultima = _ultimo_corte(db, u, True)
+        if ultima is None:
+            sin_carga.append(u)
+            continue
+        abiertos = db.query(InmovRegistroDB).filter(
+            InmovRegistroDB.unidad == u, InmovRegistroDB.fecha_habilitacion.is_(None),
+            InmovRegistroDB.ultima_vista >= ultima.created_at).count()
+        db.add(InmovCorteDB(unidad=u, tipo="sin_novedades", archivo="Sin novedades", usuario=username(user),
+                            total=0, abiertos=abiertos, created_at=ahora))
+        hechas.append(u)
+    if not hechas:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "Aún no hay una carga de inmovilizados para esa unidad: sube primero el Excel.")
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error("Error guardando el corte sin novedades", exc_info=True)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error guardando en BD: {e}")
+    registrar_historial(db, "inmovilizados", user, "Sin novedades", 0, 0, 0, 0, time.time() - t0)
+    return {"unidades": hechas, "sin_carga": sin_carga, "cortes": _cortes_json(db)}
+
+
+@router.get("/inmovilizados")
+def listar_inmovilizados(limit: int = Query(20000, ge=1, le=100000), offset: int = Query(0, ge=0),
+                         db: Session = Depends(get_db), user: Dict = Depends(get_current_user)):
+    """Todas las inmovilizaciones cargadas, con su estado (inmovilizado / habilitado / sin_confirmar) y las horas que
+    duró (las ya habilitadas). Los móviles aún inmovilizados llevan horas = None: el tablero las cuenta con el reloj."""
+    cargas = {u: _ultimo_corte(db, u, True) for u in inmov.UNIDADES}
+    q = db.query(InmovRegistroDB)
+    total = q.count()
+    filas = q.order_by(InmovRegistroDB.fecha_inmovilizacion.desc(), InmovRegistroDB.id.desc()).offset(offset).limit(limit).all()
+    items = []
+    for o in filas:
+        c = cargas.get(o.unidad)
+        items.append({
+            "id": o.id, "unidad": o.unidad, "empresa": o.empresa, "placa": o.placa, "movil": o.movil,
+            "fecha_inmovilizacion": iso(o.fecha_inmovilizacion), "causa": o.causa, "descripcion": o.descripcion,
+            "creador": o.creador, "fecha_revision": iso(o.fecha_revision), "revisor": o.revisor,
+            "descripcion_revision": o.descripcion_revision,
+            "fecha_habilitacion": iso(o.fecha_habilitacion), "habilitador": o.habilitador,
+            "estado": inmov.estado_evento(o.fecha_habilitacion, o.ultima_vista, c.created_at if c else None),
+            "horas": inmov.horas_entre(o.fecha_inmovilizacion, o.fecha_habilitacion),
+        })
+    return {"total": total, "items": items, "cortes": _cortes_json(db), "ahora": _utc_z(_ahora_utc())}
 
 
 # ═══════════════════════════════════════════════════════════
