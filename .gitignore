@@ -10,3 +10,11 @@ logs/
 Thumbs.db
 bot/perfil_chrome/
 *.session
+bot/perfil/
+bot/perfil_chrome/
+bot/debug/
+bot/descargas/
+bot/bot/
+bot/*.log
+bot/.env
+*.session
