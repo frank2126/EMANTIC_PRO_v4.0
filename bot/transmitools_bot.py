@@ -57,6 +57,18 @@ ETAPAS = [
     ("5_etapa_1_4_transmilenio", r"Etapa\s*1\.4"),
     ("6_informacion_cerrada", r"Informaci[oó]n\s+Cerrada"),
 ]
+# Módulos que se pueden bajar. Los dos viven en Debido Proceso → Etapa 1 y tienen las mismas pestañas de etapa (1.1 a 1.4).
+MODULOS = {
+    "dpv": dict(etiqueta="DPV", ruta=["Debido Proceso", "Etapa 1", "DPV"], titulo=r"\s-\sDPV", endpoint="/api/dpv/upload-csv", sufijo="",
+                etapas=None, no_defecto={6}),
+    "ico": dict(etiqueta="ICO", ruta=["Debido Proceso", "Etapa 1", "ICO"], titulo=r"\s-\sICO", endpoint="/api/ico/upload-csv", sufijo="_ico",
+                etapas=[("ico_1_etapa_1_1_concesionario", r"Etapa\s*1\.1"), ("ico_2_etapa_1_2_transmilenio", r"Etapa\s*1\.2"),
+                        ("ico_3_etapa_1_3_concesionario", r"Etapa\s*1\.3"), ("ico_4_etapa_1_4_transmilenio", r"Etapa\s*1\.4")],
+                no_defecto=set()),                     # «Información Cerrada» no se baja
+    # Kilometraje diario: NO es TransMiTools sino la plataforma Tako (ITS → Distancias → Distancias recorridas). Lo hace tako_km.py
+    "km": dict(etiqueta="KM", endpoint="/api/kilometraje/upload-tako", sufijo="_km", etapas=[], no_defecto=set()),
+}
+MODULO = "dpv"
 NO_POR_DEFECTO = {6}                       # números de pestaña que NO se bajan salvo con --solo N o --con-cerrada (6 = Información Cerrada)
 TEXTO_EXPORTAR = r"Exportar\s+Archivo"
 # La plataforma «solo permite las descargas aplicando un filtro»: el bot escribe Desde/Hasta antes de exportar.
@@ -66,6 +78,21 @@ TEXTO_REGISTROS = r"No\.\s*de\s*Registros:\s*([\d.,]+)"
 TEXTO_TITULO = r"\s-\sDPV"                  # el título de la tabla: «Etapa 1.1: 5 días Concesionario - DPV»
 PAUSA_TRAS_CLIC = 1.5                      # segundos para que la tabla se refresque al cambiar de pestaña
 # ──────────────────────────────────────────────────────────────────────────────────────────
+
+
+def usar_modulo(nombre: str) -> dict:
+    """Cambia el módulo activo (DPV o ICO): menú, pestañas, título de la tabla y endpoint de subida."""
+    global RUTA_MENU, RUTA_MENU_EXACTO, ETAPAS, NO_POR_DEFECTO, TEXTO_TITULO, MODULO
+    if MODULOS["dpv"]["etapas"] is None:
+        MODULOS["dpv"]["etapas"] = list(ETAPAS)
+    m = MODULOS[nombre]
+    MODULO = nombre
+    RUTA_MENU = list(m["ruta"])
+    RUTA_MENU_EXACTO = {t: True for t in RUTA_MENU}
+    ETAPAS = list(m["etapas"])
+    NO_POR_DEFECTO = set(m["no_defecto"])
+    TEXTO_TITULO = m["titulo"]
+    return m
 
 
 def log(msg: str) -> None:
@@ -678,8 +705,13 @@ def abrir_chrome_propio(url: str, puerto: int, avisar: bool = True) -> int:
 
 # ── 4. Subida a EMANTIC ──────────────────────────────────────────────────────────────────
 
-def subir_a_emantic(carpeta: Path) -> int:
-    """Sube los CSV de una carpeta de descargas a EMANTIC (POST /api/dpv/upload-csv), en orden de etapa. 0 = bien."""
+_TOKEN: dict = {}                                            # base de EMANTIC → token de esta corrida
+
+
+def subir_a_emantic(carpeta: Path, modulo: str = "dpv") -> int:
+    """Sube los CSV de una carpeta de descargas a EMANTIC (endpoint del módulo: DPV o ICO), en orden de etapa. 0 = bien."""
+    m = MODULOS[modulo]
+    etiqueta = m["etiqueta"]
     try:
         import requests
     except ImportError:
@@ -690,18 +722,26 @@ def subir_a_emantic(carpeta: Path) -> int:
     if not usuario or not clave:
         log("Falta EMANTIC_USUARIO / EMANTIC_CLAVE en bot/.env (un usuario administrador de tu app).")
         return 2
-    archivos = sorted(carpeta.glob("*.csv"))                 # 2_…, 3_…, 4_…: el nombre empieza con el número de etapa
+    archivos = sorted(carpeta.glob("*.csv"))                 # 2_…, 3_…, 4_…: el nombre empieza con el número de etapa (km_SF…, km_ST…)
     if not archivos:
         log(f"No hay archivos .csv en {carpeta}: nada que subir (¿el bot bajó en formato Excel? usa BOT_FORMATO=csv).")
         return 2
     try:
-        r = requests.post(f"{base}/api/auth/login", json={"username": usuario, "password": clave}, timeout=30)
-        if r.status_code != 200:
-            log(f"EMANTIC rechazó el usuario/clave ({r.status_code}): {r.text[:200]}")
-            return 1
-        token = r.json()["access_token"]
-        log(f"Subiendo {len(archivos)} archivo(s) a {base}…")
-        r = requests.post(f"{base}/api/dpv/upload-csv", headers={"Authorization": f"Bearer {token}"}, timeout=300,
+        token = _TOKEN.get((base, usuario, clave))                             # un solo inicio de sesión por corrida (el login bloquea tras varios intentos)
+        if not token:
+            r = requests.post(f"{base}/api/auth/login", json={"username": usuario, "password": clave}, timeout=30)
+            if r.status_code == 429:                         # «Demasiados intentos. Intenta de nuevo en N segundos»: se espera y se reintenta una vez
+                m429 = re.search(r"(\d+)\s*segundos", r.text)
+                espera = min(int(m429.group(1)) + 3, 130) if m429 else 65
+                log(f"EMANTIC pide esperar {espera} s por demasiados inicios de sesión; espero y reintento…")
+                time.sleep(espera)
+                r = requests.post(f"{base}/api/auth/login", json={"username": usuario, "password": clave}, timeout=30)
+            if r.status_code != 200:
+                log(f"EMANTIC rechazó el usuario/clave ({r.status_code}): {r.text[:200]}")
+                return 1
+            token = _TOKEN[(base, usuario, clave)] = r.json()["access_token"]
+        log(f"Subiendo {len(archivos)} archivo(s) de {etiqueta} a {base}…")
+        r = requests.post(f"{base}{m['endpoint']}", headers={"Authorization": f"Bearer {token}"}, timeout=300,
                           files=[("files", (a.name, a.read_bytes(), "text/csv")) for a in archivos])
     except requests.exceptions.ConnectionError:
         log(f"No pude conectar con EMANTIC en {base}. ¿Está encendido el backend? (EMANTIC_URL en bot/.env)")
@@ -710,9 +750,11 @@ def subir_a_emantic(carpeta: Path) -> int:
         log(f"EMANTIC respondió {r.status_code}: {r.text[:300]}")
         return 1
     j = r.json()
-    log(f"EMANTIC: {j.get('insertados', 0)} nuevos, {j.get('actualizados', 0)} actualizados, {j.get('errores', 0)} con error.")
+    log(f"EMANTIC {etiqueta}: {j.get('insertados', 0)} nuevos, {j.get('actualizados', 0)} actualizados, {j.get('errores', 0)} con error.")
+    if modulo == "km":
+        log(f"   Kilometraje: {j.get('moviles', 0)} móviles, {j.get('dias', 0)} día(s) ({j.get('desde')} → {j.get('hasta')}).")
     if j.get("sin_tipologia"):
-        log(f"   Aviso: {j['sin_tipologia']} registro(s) nuevos sin tipología (móvil que no estaba en el DPV): complétalos en la app.")
+        log(f"   Aviso: {j['sin_tipologia']} registro(s) nuevos sin tipología (móvil que no estaba registrado): complétalos en la app.")
     for e in j.get("errores_detalle", [])[:5]:
         log(f"   {e}")
     return 0
@@ -742,7 +784,11 @@ def conectar_cdp(p, puerto: int, url_abrir=None):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Descarga las pestañas del DPV de TransMiTools")
+    ap = argparse.ArgumentParser(description="Descarga las pestañas del DPV / ICO de TransMiTools")
+    ap.add_argument("--modulo", choices=["dpv", "ico", "km", "todo"], default=os.environ.get("BOT_MODULO", "dpv"),
+                    help="qué bajar: dpv, ico, km (kilometraje de Tako) o todo (DPV + ICO + km si hay TAKO_URL)")
+    ap.add_argument("--fecha-km", metavar="AAAA-MM-DD", help="día de kilometraje a bajar de Tako (por defecto, AYER)")
+    ap.add_argument("--zonas", help="zonas de Tako a bajar, separadas por coma (por defecto TAKO_ZONAS o ST,SF)")
     ap.add_argument("--solo", help="números de las pestañas a bajar, p. ej. 1,2 (por defecto, las 5 primeras)")
     ap.add_argument("--desde", help="fecha inicial del filtro (AAAA-MM-DD, como la pida la pantalla)")
     ap.add_argument("--hasta", help="fecha final del filtro")
@@ -763,11 +809,25 @@ def main() -> int:
 
     cargar_env()
     if args.subir_carpeta:
-        return subir_a_emantic(Path(args.subir_carpeta))
+        carpeta_sub = Path(args.subir_carpeta)
+        mod = args.modulo if args.modulo in MODULOS else ("km" if carpeta_sub.name.endswith("_km") else "ico" if carpeta_sub.name.endswith("_ico") else "dpv")
+        return subir_a_emantic(carpeta_sub, mod)
     url = args.url or os.environ.get("TRANSMITOOLS_URL", "").strip()
-    if not url:
+    url_tako = os.environ.get("TAKO_URL", "").strip()
+    if args.modulo == "todo":
+        modulos = ["dpv", "ico"] + (["km"] if url_tako else [])
+        if not url_tako:
+            log("Aviso: no hay TAKO_URL en bot/.env: se omite el kilometraje (solo DPV e ICO).")
+    else:
+        modulos = [args.modulo]
+    necesita_tm = any(n in ("dpv", "ico") for n in modulos)
+    if necesita_tm and not url:
         log("Falta TRANSMITOOLS_URL (dirección de inicio de TransMiTools) en bot/.env")
         return 2
+    if "km" in modulos and not url_tako:
+        log("Falta TAKO_URL (dirección de Tako) en bot/.env")
+        return 2
+    url = url or url_tako
     puerto = int(os.environ.get("BOT_PUERTO_CDP", "9222"))
     if args.abrir_chrome:
         return abrir_chrome_propio(url, puerto)
@@ -778,16 +838,15 @@ def main() -> int:
     else:
         log("Sin filtro de fechas: se exporta directo; si el sitio no deja, se aplica el filtro por defecto.")
     espera_login = int(os.environ.get("BOT_ESPERA_LOGIN_MIN", "5"))
-    etapas = [e for i, e in enumerate(ETAPAS, 1) if args.con_cerrada or i not in NO_POR_DEFECTO]
-    if args.solo:
-        idx = {int(x) for x in args.solo.split(",") if x.strip().isdigit()}
-        etapas = [e for i, e in enumerate(ETAPAS, 1) if i in idx]
-        if not etapas:
-            log("--solo no coincide con ninguna pestaña (usa números del 1 al 6)")
-            return 2
 
-    carpeta = DESCARGAS / datetime.now().strftime("%Y%m%d_%H%M")
-    resultados = []
+    def etapas_de_modulo():
+        etapas = [e for i, e in enumerate(ETAPAS, 1) if args.con_cerrada or i not in NO_POR_DEFECTO]
+        if args.solo:
+            idx = {int(x) for x in args.solo.split(",") if x.strip().isdigit()}
+            etapas = [e for i, e in enumerate(ETAPAS, 1) if i in idx]
+        return etapas
+
+    corridas = []                                            # (módulo, carpeta, resultados, falló_antes_de_las_pestañas)
     with sync_playwright() as p:
         browser = None
         if args.conectar:
@@ -809,26 +868,60 @@ def main() -> int:
         try:
             inicio = context.new_page() if args.conectar else (context.pages[0] if context.pages else context.new_page())
             cap = Capturador(context)
-            asegurar_sesion(inicio, url, espera_login)
-            eic = abrir_plataforma(context, inicio)
-            if args.inspeccionar:
+            eic = None
+            if necesita_tm:
+                asegurar_sesion(inicio, url, espera_login)
+                eic = abrir_plataforma(context, inicio)
+            if args.inspeccionar and eic is not None:
+                usar_modulo(modulos[0])
                 modo_inspeccion(context, cap)
                 return 0
-            ir_a_dpv(eic)
-            carpeta.mkdir(parents=True, exist_ok=True)
-            vistas: dict = {}
-            for etapa in etapas:
-                log(f"Pestaña {etapa[0]}")
+            for nombre in modulos:
+                if nombre == "km":
+                    import tako_km
+                    fecha_km = tako_km.fecha_objetivo(args.fecha_km)
+                    carpeta = DESCARGAS / (datetime.now().strftime("%Y%m%d_%H%M") + MODULOS["km"]["sufijo"])
+                    if len(modulos) > 1:
+                        log("══ KM ══")
+                    try:
+                        res = tako_km.ejecutar(context, cap, carpeta, fecha_km, tako_km.zonas_de(args.zonas), log, buscar, guardar_debug, espera_login)
+                        corridas.append((nombre, carpeta, res, False))
+                    except Exception as e:               # noqa: BLE001 — si falla Tako, lo demás ya quedó hecho
+                        log(f"ERROR en KM: {str(e).splitlines()[0]}")
+                        if context.pages:
+                            guardar_debug(context.pages[-1], "general_km")
+                        corridas.append((nombre, carpeta, [], True))
+                    continue
+                m = usar_modulo(nombre)
+                etapas = etapas_de_modulo()
+                if not etapas:
+                    log(f"--solo no coincide con ninguna pestaña de {m['etiqueta']}")
+                    continue
+                if len(modulos) > 1:
+                    log(f"══ {m['etiqueta']} ══")
+                carpeta = DESCARGAS / (datetime.now().strftime("%Y%m%d_%H%M") + m["sufijo"])
+                resultados = []
                 try:
-                    r = descargar_etapa(eic, cap, etapa, carpeta, formato, args.desde, args.hasta, args.incluir_vacias, vistas, args.sin_filtro)
-                    if r["estado"] == "error":
-                        log(f"   ERROR: {r['detalle']}")
-                        guardar_debug(eic, etapa[0])
-                    resultados.append(r)
-                except Exception as e:                       # noqa: BLE001 — una pestaña que falla no impide las demás
-                    log(f"   ERROR: {str(e).splitlines()[0]}")
-                    guardar_debug(eic, etapa[0])
-                    resultados.append({"etapa": etapa[0], "estado": "error", "registros": None, "archivo": None, "detalle": str(e).splitlines()[0]})
+                    ir_a_dpv(eic)                            # abre la pantalla del módulo activo (DPV o ICO)
+                    carpeta.mkdir(parents=True, exist_ok=True)
+                    vistas: dict = {}
+                    for etapa in etapas:
+                        log(f"Pestaña {etapa[0]}")
+                        try:
+                            r = descargar_etapa(eic, cap, etapa, carpeta, formato, args.desde, args.hasta, args.incluir_vacias, vistas, args.sin_filtro)
+                            if r["estado"] == "error":
+                                log(f"   ERROR: {r['detalle']}")
+                                guardar_debug(eic, etapa[0])
+                            resultados.append(r)
+                        except Exception as e:               # noqa: BLE001 — una pestaña que falla no impide las demás
+                            log(f"   ERROR: {str(e).splitlines()[0]}")
+                            guardar_debug(eic, etapa[0])
+                            resultados.append({"etapa": etapa[0], "estado": "error", "registros": None, "archivo": None, "detalle": str(e).splitlines()[0]})
+                    corridas.append((nombre, carpeta, resultados, False))
+                except Exception as e:                       # noqa: BLE001 — si falla un módulo, el siguiente se intenta igual
+                    log(f"ERROR en {m['etiqueta']}: {str(e).splitlines()[0]}")
+                    guardar_debug(eic, f"general_{nombre}")
+                    corridas.append((nombre, carpeta, resultados, True))
         except Exception as e:                               # noqa: BLE001
             log(f"ERROR GENERAL: {str(e).splitlines()[0]}")
             for pg in context.pages[-1:]:
@@ -840,21 +933,24 @@ def main() -> int:
             else:
                 context.close()
 
-    if carpeta.exists():
-        (carpeta / "manifiesto.json").write_text(json.dumps(
-            {"fecha": datetime.now().isoformat(timespec="seconds"), "desde": args.desde, "hasta": args.hasta, "etapas": resultados},
-            ensure_ascii=False, indent=1), encoding="utf-8")
-    print("\nRESUMEN")
-    for r in resultados:
-        print(f"  [{ {'ok': 'OK', 'vacia': '--', 'error': 'XX'}[r['estado']] }] {r['etapa']:<28} registros={r['registros']}  {r['archivo'] or r['detalle']}")
-    if carpeta.exists():
-        print(f"\nArchivos en: {carpeta}")
-    rc = 0 if all(r["estado"] != "error" for r in resultados) else 1
-    if (args.subir or os.environ.get("BOT_SUBIR") == "1") and carpeta.exists():
-        rc_sub = subir_a_emantic(carpeta)
-        rc = rc or rc_sub
+    rc = 0
+    subir = args.subir or os.environ.get("BOT_SUBIR") == "1"
+    for nombre, carpeta, resultados, fallo in corridas:
+        if carpeta.exists():
+            (carpeta / "manifiesto.json").write_text(json.dumps(
+                {"fecha": datetime.now().isoformat(timespec="seconds"), "modulo": nombre, "desde": args.desde, "hasta": args.hasta,
+                 "etapas": resultados}, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\nRESUMEN {MODULOS[nombre]['etiqueta']}")
+        for r in resultados:
+            print(f"  [{ {'ok': 'OK', 'vacia': '--', 'error': 'XX'}[r['estado']] }] {r['etapa']:<32} registros={r['registros']}  {r['archivo'] or r['detalle']}")
+        if carpeta.exists():
+            print(f"\nArchivos en: {carpeta}")
+        if fallo or any(r["estado"] == "error" for r in resultados):
+            rc = 1
+        if subir and carpeta.exists():
+            rs = subir_a_emantic(carpeta, nombre)           # se sube aunque otra pestaña haya fallado: lo bajado sirve
+            rc = rc or rs
     return rc
-
 
 if __name__ == "__main__":
     sys.exit(main())

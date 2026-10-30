@@ -128,3 +128,93 @@ class TestBotonActualizar:
                 break
             time.sleep(0.25)
         assert e["estado"] == "ok" and e["resultado"] == {"nuevos": 3, "actualizados": 2, "errores": 0}
+
+
+# ═══════════════════════════════════════════════════════════
+#  ICO desde los CSV del bot (POST /api/ico/upload-csv) — ids propios 9xxxxxx
+# ═══════════════════════════════════════════════════════════
+
+CABECERA_ICO = ('"IdICO","Id Novedad","Estado","F. Inicio DP","F. Cierre DP","Empresa","Tipo Novedad","Fecha Novedad",'
+                '"Fecha Identificación","Fecha Notificación","Tipo Concesión","Fuente","Área"')
+
+
+def fila_ico(ico, estado="No Contestado", novedad=96351, tipo="I5006"):
+    return [ico, novedad, estado, "2026-10-26 00:00:00", "2026-10-30 23:59:59", "EMASIVO 16 S.A.S.", tipo,
+            "2026-10-22 03:39:00", "2026-10-22 03:39:00", "2026-10-23 06:03:00", "1", "URBANO", "VEHICULOS"]
+
+
+def subir_ico(client, headers, archivos):
+    return client.post("/api/ico/upload-csv", headers=headers, files=[("files", (n, c, "text/csv")) for n, c in archivos])
+
+
+class TestCargaICOBot:
+
+    def test_inserta_con_encabezados_del_portal(self, client, admin_headers, db_session):
+        r = subir_ico(client, admin_headers, [("ico_1.csv", csv_bytes([fila_ico(9100001), fila_ico(9100002, estado="Contestado")], cabecera=CABECERA_ICO))])
+        assert r.status_code == status.HTTP_200_OK, r.text
+        assert r.json()["insertados"] == 2 and r.json()["errores"] == 0
+        from database import IcoRegistroDB
+        o = db_session.query(IcoRegistroDB).filter_by(ico_id=9100001).one()
+        assert o.id_novedad == 96351 and o.tipo_novedad == "I5006" and o.estado == "No Contestado"
+        assert o.empresa == "EMASIVO 16 S.A.S." and o.area == "VEHICULOS" and o.dia_semana == "JUEVES"
+
+    def test_actualiza_sin_borrar_lo_que_el_csv_no_trae(self, client, admin_headers, db_session):
+        from database import IcoRegistroDB
+        db_session.add(IcoRegistroDB(ico_id=9100010, estado="No Contestado", movil="Z32-1234", placa="AAA111", tipologia="PADRON", puntos="10"))
+        db_session.commit()
+        r = subir_ico(client, admin_headers, [("ico_2.csv", csv_bytes([fila_ico(9100010, estado="Contestado")], cabecera=CABECERA_ICO))])
+        assert r.json()["actualizados"] == 1 and r.json()["insertados"] == 0
+        db_session.expire_all()
+        o = db_session.query(IcoRegistroDB).filter_by(ico_id=9100010).one()
+        assert o.estado == "Contestado" and o.tipologia == "PADRON" and o.puntos == "10" and o.movil == "Z32-1234"
+
+    def test_rechaza_otros_formatos_y_columnas_faltantes(self, client, admin_headers):
+        assert subir_ico(client, admin_headers, [("x.xlsx", b"abc")]).status_code == 400
+        r = subir_ico(client, admin_headers, [("x.csv", b'"A","B"\n"1","2"\n')])
+        assert r.status_code == 400 and "faltan columnas" in r.text
+
+    def test_solo_admin(self, client, tecnico_headers):
+        r = subir_ico(client, tecnico_headers, [("ico.csv", csv_bytes([fila_ico(9100020)], cabecera=CABECERA_ICO))])
+        assert r.status_code in (401, 403)
+
+
+# ═══════════════════════════════════════════════════════════
+#  Kilometraje desde el CSV de Tako (POST /api/kilometraje/upload-tako) — móviles de prueba ZT9xxxx
+# ═══════════════════════════════════════════════════════════
+
+def csv_tako(fecha, filas):
+    """filas: [(movil, recorrido, min, max)] → CSV como el «Export to CSV» de Tako (una celda con 3 líneas por día)."""
+    cuerpo = "".join(f'"{m}","","Recorrido: {r} km\nMín: {a} km\nMáx: {b} km"\n' for m, r, a, b in filas)
+    return f'"VARIABLE","TENDENCIA","{fecha}"\n{cuerpo}'.encode("utf-8-sig")
+
+
+def subir_km_tako(client, headers, archivos):
+    return client.post("/api/kilometraje/upload-tako", headers=headers, files=[("files", (n, c, "text/csv")) for n, c in archivos])
+
+
+class TestKilometrajeTako:
+
+    def test_guarda_lecturas_de_las_dos_zonas(self, client, admin_headers, db_session):
+        st = csv_tako("2026-10-28", [("ZT90001", 156.51, 300679.72, 300836.22)])
+        sf = csv_tako("2026-10-28", [("ZT90002", 22.1, 5000.25, 5022.35)])
+        r = subir_km_tako(client, admin_headers, [("km_ST_2026-10-28.csv", st), ("km_SF_2026-10-28.csv", sf)])
+        assert r.status_code == status.HTTP_200_OK, r.text
+        assert r.json()["moviles"] == 2 and r.json()["insertados"] == 2 and r.json()["errores"] == 0
+        from database import LecturaKmDB
+        a = db_session.query(LecturaKmDB).filter_by(movil="ZT90001", fecha="2026-10-28").one()
+        assert abs(a.recorrido - 156.51) < .01 and abs(a.odo_min - 300679.72) < .01 and abs(a.odo_max - 300836.22) < .01
+
+    def test_repetir_el_mismo_dia_actualiza_no_duplica(self, client, admin_headers, db_session):
+        subir_km_tako(client, admin_headers, [("a.csv", csv_tako("2026-10-27", [("ZT90010", 100, 1000, 1100)]))])
+        r = subir_km_tako(client, admin_headers, [("a.csv", csv_tako("2026-10-27", [("ZT90010", 120, 1000, 1120)]))])
+        assert r.json()["insertados"] == 0 and r.json()["actualizados"] == 1
+        from database import LecturaKmDB
+        assert db_session.query(LecturaKmDB).filter_by(movil="ZT90010", fecha="2026-10-27").count() == 1
+
+    def test_rechaza_archivo_sin_fechas_y_otros_formatos(self, client, admin_headers):
+        assert subir_km_tako(client, admin_headers, [("x.csv", b'"A","B"\n"1","2"\n')]).status_code == 400
+        assert subir_km_tako(client, admin_headers, [("x.xlsx", b"abc")]).status_code == 400
+
+    def test_solo_admin(self, client, tecnico_headers):
+        r = subir_km_tako(client, tecnico_headers, [("a.csv", csv_tako("2026-10-26", [("ZT90020", 1, 2, 3)]))])
+        assert r.status_code in (401, 403)
