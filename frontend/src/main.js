@@ -3,6 +3,7 @@ import App from './App.vue'
 import AppLoader from './components/AppLoader.vue'
 import router from './router'
 import './assets/main.css'
+import './assets/responsive-mobile.css'
 import { createPinia } from 'pinia'
 
 const app = createApp(App)

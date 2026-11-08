@@ -533,9 +533,7 @@ const tarjetas = computed(() => store.dpvTarjetas.map(t => ({
 
 const paneles = computed(() => [
   { dim: 'causa',    titulo: 'CAUSAS DE INMOVILIZACIÓN',   col: 'CAUSA',    filas: store.dpvCausas,    mono: false },
-  { dim: 'ruta',     titulo: 'No. EVENTOS POR RUTA',       col: 'RUTA',     filas: store.dpvRutas,     mono: false },
   { dim: 'movil',    titulo: 'No. EVENTOS POR MÓVIL',      col: 'MÓVIL',    filas: store.dpvMoviles,   mono: true },
-  { dim: 'operador', titulo: 'No. EVENTOS POR OPERADOR',   col: 'OPERADOR', filas: store.dpvOperadores, mono: false },
 ])
 
 // ── Helpers de presentación ──

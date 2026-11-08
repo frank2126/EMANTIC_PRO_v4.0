@@ -31,7 +31,10 @@ from routes.diagnostico import router as diagnostico_router
 from routes.kilometraje import router as kilometraje_router
 from routes.documents import router as documents_router
 from routes.checklist import router as checklist_router
-from routes.dpv_bot import router as dpv_bot_router          # junto a: from routes.datos import router as datos_router
+from routes.dpv_bot import router as dpv_bot_router    
+from routes.subscriptions import router as subscriptions_router   
+from routes.solicitudes import router as solicitudes_router   
+from routes.disponibilidad_bot import router as disponibilidad_bot_router
 
 # Error handling
 from utils.error_handler import setup_exception_handlers
@@ -158,9 +161,12 @@ app.include_router(app_config_router)
 app.include_router(diagnostico_router)
 app.include_router(kilometraje_router)
 app.include_router(checklist_router)
-app.include_router(datos_router)  # /api/dpv, /api/ico, /api/disponibilidad, /api/dpv-mensual, /api/cargas
+app.include_router(datos_router)  
 app.include_router(documents_router)
-app.include_router(dpv_bot_router)                           # junto a: app.include_router(datos_router)
+app.include_router(dpv_bot_router) 
+app.include_router(subscriptions_router)
+app.include_router(solicitudes_router) 
+app.include_router(disponibilidad_bot_router)                         
 
 logger.info("✅ Rutas registradas: auth, users, maintenance, reportes, excel, manuals, repuestos, health, kilometraje, datos, documents")
 

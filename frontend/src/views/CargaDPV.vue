@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h1 class="page-title"><span>📥</span> Carga Masiva DPV</h1>
+      <h1 class="page-title"><Upload :size="26" aria-hidden="true" /> Carga de datos DPV</h1>
       <span class="badge badge-info">Solo Administrador</span>
     </div>
 
@@ -10,7 +10,7 @@
     ══════════════════════════════════════════════════════ -->
     <section class="card upload-card inm-card" aria-labelledby="t-inm">
       <div class="inm-cab">
-        <h2 class="card-title" id="t-inm"><span aria-hidden="true">🛠️</span> Inmovilizados <small class="inm-sub">se actualiza cada hora</small></h2>
+        <h2 class="card-title" id="t-inm"><Wrench :size="20" aria-hidden="true" /> Inmovilizados <small class="inm-sub">cada hora</small></h2>
         <div class="inm-fresco" aria-live="polite">
           <span v-for="f in frescuraInm" :key="f.key" class="fr-item" :title="f.titulo">
             <span class="fr-dot" :class="'fr-' + f.nivel" aria-hidden="true"></span>{{ f.nombre }} {{ f.texto }}
@@ -18,9 +18,7 @@
         </div>
       </div>
       <p class="upload-hint">
-        Sube el Excel del reporte «Vehículos inmovilizados por concesionario de operación» (<code>.xlsx</code>, máx. <strong>{{ MAX_MB }} MB</strong>).
-        Cada fila se identifica por placa + fecha de inmovilización: las nuevas se agregan y, cuando el siguiente archivo trae la
-        fecha de habilitación, el móvil pasa a «habilitado».
+        Sube el Excel de vehículos inmovilizados (<code>.xlsx</code>, máx. {{ MAX_MB }} MB). Los móviles nuevos se agregan y los habilitados se actualizan.
       </p>
 
       <label class="drop-zone drop-compacta"
@@ -31,16 +29,16 @@
         <input type="file" class="sr-only" accept=".xlsx" aria-label="Elegir el Excel de inmovilizados"
           @change="elegir(inm, $event.target.files[0]); $event.target.value = ''" />
         <span v-if="!inm.archivo" class="drop-content">
-          <span class="drop-main">Arrastra el Excel de inmovilizados aquí</span>
-          <span class="drop-sub">o haz clic para seleccionarlo</span>
+          <span class="drop-main">Arrastra el Excel aquí</span>
+          <span class="drop-sub">o haz clic para elegirlo</span>
         </span>
         <span v-else class="drop-content">
-          <span class="drop-main">✅ {{ inm.archivo.name }}</span>
+          <span class="drop-main"><CircleCheck :size="16" class="ic" aria-hidden="true" /> {{ inm.archivo.name }}</span>
           <span class="drop-sub">{{ (inm.archivo.size / 1024).toFixed(0) }} KB</span>
         </span>
       </label>
 
-      <p v-if="inm.error" class="err-msg" role="alert">⚠️ {{ inm.error }}</p>
+      <p v-if="inm.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ inm.error }}</p>
 
       <div v-if="inm.cargando" class="progress-wrap">
         <div class="progress-bar" role="progressbar" aria-label="Avance de la carga" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="inm.progreso">
@@ -50,21 +48,19 @@
       </div>
 
       <div class="form-actions inm-acciones">
-        <!-- Botón sutil: cuando en la hora no hubo novedades -->
         <button type="button" class="btn-sutil" :disabled="inmSN.enviando || inm.cargando" @click="sinNovedades"
-          title="Úsalo cuando en esta hora no hubo cambios: deja constancia de que la información sigue al día, sin subir otro Excel">
-          {{ inmSN.enviando ? 'Registrando…' : '✓ Sin novedades esta hora' }}
+          title="Registra que en esta hora no hubo cambios, sin subir otro Excel">
+          <Check :size="14" class="ic" aria-hidden="true" /> {{ inmSN.enviando ? 'Registrando…' : 'Sin novedades esta hora' }}
         </button>
         <span class="inm-espacio"></span>
         <button type="button" class="btn-secondary" :disabled="inm.cargando" @click="limpiar(inm)">Limpiar</button>
         <button type="button" class="btn-primary" :disabled="inm.cargando || !inm.archivo" @click="subir(inm, '/api/inmovilizados/upload', alCargarInmov)">
-          {{ inm.cargando ? 'Procesando...' : '⬆ Procesar inmovilizados' }}
+          <Upload :size="16" aria-hidden="true" /> {{ inm.cargando ? 'Procesando...' : 'Procesar inmovilizados' }}
         </button>
       </div>
-      <p v-if="inmSN.ok" class="ok-msg inm-ok" role="status">✔ {{ inmSN.ok }}</p>
-      <p v-if="inmSN.error" class="err-msg" role="alert">⚠️ {{ inmSN.error }}</p>
+      <p v-if="inmSN.ok" class="ok-msg inm-ok" role="status"><CircleCheck :size="16" aria-hidden="true" /> {{ inmSN.ok }}</p>
+      <p v-if="inmSN.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ inmSN.error }}</p>
 
-      <!-- Resultado en una línea; los avisos solo aparecen si hay algo que revisar -->
       <div v-if="inm.resultado" class="inm-res" role="status" aria-label="Resultado de la carga de inmovilizados">
         <p class="res-linea" :class="inm.resultado.errores > 0 ? 'res-warn' : 'res-ok'">
           {{ resumenInm }}
@@ -108,10 +104,8 @@
 
     <section class="card guia" aria-label="Cómo se calcula el DPV">
       <p>
-        El DPV de cada mes es <strong>los km del mes ÷ las inmovilizaciones del mes</strong>, y necesita dos cosas:
-        los <strong>eventos</strong> (paso 1) y los <strong>km</strong> de cada mes (paso 2).
-        Las inmovilizaciones y el DPV se calculan solos con los eventos cargados: si un evento cambia de estado, el DPV se actualiza
-        sin volver a subir nada. El mismo libro de Excel sirve para los dos pasos.
+        <strong>DPV mensual = km del mes ÷ inmovilizaciones del mes.</strong>
+        Sube los <strong>eventos</strong> (paso 1) y los <strong>km</strong> (paso 2). El DPV se calcula solo.
       </p>
     </section>
 
@@ -123,14 +117,16 @@
     <section class="card upload-card" aria-labelledby="t-eventos">
       <h2 class="card-title" id="t-eventos"><span class="paso">1</span> Eventos de inmovilización</h2>
       <p class="upload-hint">
-        Formato: <code>.xlsx</code> · Máximo <strong>{{ MAX_MB }} MB</strong>.
-        Sube el libro completo: el sistema busca solo la hoja con los eventos (la que tiene las columnas
-        <code>DPV</code>, <code>ESTADO</code> y <code>PLACA</code>, por ejemplo «BASE DE DATOS»).
-        Los eventos que ya existen (mismo número de DPV) se actualizan y los nuevos se agregan.<br />
-        Columnas que se leen: DPV, ESTADO, F. INICIO DPV, F. CIERRE DPV, EMPRESA, FUENTE, PLACA, MOVIL, TIPOLOGIA,
-        FECHA INMOVILIZACION, HORA, CAUSA DE INMOVILIZACION, DESCRIPCION DE LA NOVEDAD, RUTA, OPERADOR, DIA SEMANA, ALERTA,
-        FRANJA HORARIA.
+        Sube el libro de Excel completo (<code>.xlsx</code>, máx. {{ MAX_MB }} MB). La hoja de eventos se detecta sola.
+        Los DPV que ya existen se actualizan y los nuevos se agregan.
       </p>
+      <details class="cols-detalle">
+        <summary>Ver columnas que se leen</summary>
+        <p>
+          DPV, ESTADO, F. INICIO DPV, F. CIERRE DPV, EMPRESA, FUENTE, PLACA, MOVIL, TIPOLOGIA, FECHA INMOVILIZACION, HORA,
+          CAUSA DE INMOVILIZACION, DESCRIPCION DE LA NOVEDAD, RUTA, OPERADOR, DIA SEMANA, ALERTA, FRANJA HORARIA.
+        </p>
+      </details>
 
       <label class="drop-zone"
         :class="{ 'drop-active': eventos.arrastrado, 'drop-ok': eventos.archivo, 'drop-err': eventos.error }"
@@ -140,18 +136,18 @@
         <input type="file" class="sr-only" accept=".xlsx,.xlsm" aria-label="Elegir el libro de Excel con los eventos"
           @change="elegir(eventos, $event.target.files[0]); $event.target.value = ''" />
         <span v-if="!eventos.archivo" class="drop-content">
-          <span class="drop-icon" aria-hidden="true">📊</span>
+          <FileSpreadsheet :size="36" :stroke-width="1.5" class="drop-icon" aria-hidden="true" />
           <span class="drop-main">Arrastra el libro de Excel aquí</span>
-          <span class="drop-sub">o haz clic para seleccionarlo</span>
+          <span class="drop-sub">o haz clic para elegirlo</span>
         </span>
         <span v-else class="drop-content">
-          <span class="drop-icon" aria-hidden="true">✅</span>
+          <CircleCheck :size="36" :stroke-width="1.5" class="drop-icon drop-icon--ok" aria-hidden="true" />
           <span class="drop-main">{{ eventos.archivo.name }}</span>
           <span class="drop-sub">{{ (eventos.archivo.size / 1024 / 1024).toFixed(2) }} MB</span>
         </span>
       </label>
 
-      <p v-if="eventos.error" class="err-msg" role="alert">⚠️ {{ eventos.error }}</p>
+      <p v-if="eventos.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ eventos.error }}</p>
 
       <div v-if="eventos.cargando" class="progress-wrap">
         <div class="progress-bar" role="progressbar" aria-label="Avance de la carga" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="eventos.progreso">
@@ -163,7 +159,7 @@
       <div class="form-actions">
         <button type="button" class="btn-secondary" :disabled="eventos.cargando" @click="limpiar(eventos)">Limpiar</button>
         <button type="button" class="btn-primary" :disabled="eventos.cargando || !eventos.archivo" @click="subir(eventos, '/api/dpv/upload', alCargarEventos)">
-          {{ eventos.cargando ? 'Procesando...' : '⬆ Procesar eventos' }}
+          <Upload :size="16" aria-hidden="true" /> {{ eventos.cargando ? 'Procesando...' : 'Procesar eventos' }}
         </button>
       </div>
     </section>
@@ -219,7 +215,8 @@
     <section class="card historial-card" aria-labelledby="t-hist-eventos">
       <h3 class="card-title" id="t-hist-eventos">Historial de cargas de eventos</h3>
       <div v-if="eventos.historial.length === 0" class="empty-state">
-        <span class="empty-icon" aria-hidden="true">📭</span><p>Sin cargas registradas</p>
+        <Inbox :size="32" :stroke-width="1.5" class="empty-icon" aria-hidden="true" />
+        <p>Sin cargas registradas</p>
       </div>
       <div v-else class="table-wrap">
         <table class="data-table">
@@ -249,33 +246,25 @@
          PASO 2: KM OFICIALES DE CADA MES
     ══════════════════════════════════════════════════════ -->
     <div class="seccion-divider">
-      <span aria-hidden="true">📈</span>
+      <TrendingUp :size="22" aria-hidden="true" />
       <h2>Km de cada mes</h2>
     </div>
 
     <section class="card nota" aria-label="Qué se toma del Excel de km">
       <p>
-        De este paso solo se toman los <strong>km</strong> de cada mes (total y, si los tienes, por tipología).
-        Las inmovilizaciones <strong>no se escriben</strong>: salen de los eventos del paso 1, sin contar los estados
-        <template v-if="estadosDescartados.length">«{{ estadosDescartados.join('», «') }}»</template>
-        <template v-else>descartados</template>.
-        Las columnas de inmovilizaciones y DPV que traiga el Excel se guardan solo para compararlas.
+        Del Excel solo se toman los <strong>km</strong> del mes. Las inmovilizaciones salen de los eventos
+        <template v-if="estadosDescartados.length">(sin contar «{{ estadosDescartados.join('», «') }}»)</template>.
         <template v-if="umbrales">
-          Nivel del DPV: <strong>cumple</strong> desde {{ fmtKm(umbrales.estandar) }} km,
-          <strong>crítico</strong> hasta {{ fmtKm(umbrales.critico) }} km.
+          Cumple desde {{ fmtKm(umbrales.estandar) }} km; crítico hasta {{ fmtKm(umbrales.critico) }} km.
         </template>
       </p>
     </section>
 
     <section class="card upload-card" aria-labelledby="t-km">
-      <h2 class="card-title" id="t-km"><span class="paso">2</span> Subir los km desde Excel</h2>
+      <h2 class="card-title" id="t-km"><span class="paso">2</span> Subir los km</h2>
       <p class="upload-hint">
-        Formato: <code>.xlsx</code> · Máximo <strong>{{ MAX_MB }} MB</strong>.
-        El libro debe tener las hojas <code>DPV_E10</code> y <code>DPV_E16</code>, con las columnas
-        <code>MES</code>, <code>TOTAL KM</code> y, si las tienes, <code>KM PADRON</code> y <code>KM BUSETON</code>
-        (también se leen <code>TOTAL INNMOVILIZADOS</code> y <code>DPV GENERAL</code>, solo para comparar).
-        El diseño anterior (DVP_E10, No VARADOS, KMS, PADRON, BUSETON) también se entiende.
-        Los meses sin km se omiten: no se guardan como cero.
+        Libro <code>.xlsx</code> (máx. {{ MAX_MB }} MB) con las hojas <code>DPV_E10</code> y <code>DPV_E16</code> y las columnas
+        <code>MES</code>, <code>TOTAL KM</code>, <code>KM PADRON</code> y <code>KM BUSETON</code>. Los meses sin km se omiten.
       </p>
 
       <label class="drop-zone"
@@ -286,18 +275,18 @@
         <input type="file" class="sr-only" accept=".xlsx" aria-label="Elegir el libro de Excel con los km de cada mes"
           @change="elegir(kmMes, $event.target.files[0]); $event.target.value = ''" />
         <span v-if="!kmMes.archivo" class="drop-content">
-          <span class="drop-icon" aria-hidden="true">📈</span>
-          <span class="drop-main">Arrastra el libro con las hojas DPV_E10 y DPV_E16 aquí</span>
-          <span class="drop-sub">o haz clic para seleccionarlo</span>
+          <TrendingUp :size="36" :stroke-width="1.5" class="drop-icon" aria-hidden="true" />
+          <span class="drop-main">Arrastra el libro de km aquí</span>
+          <span class="drop-sub">o haz clic para elegirlo</span>
         </span>
         <span v-else class="drop-content">
-          <span class="drop-icon" aria-hidden="true">✅</span>
+          <CircleCheck :size="36" :stroke-width="1.5" class="drop-icon drop-icon--ok" aria-hidden="true" />
           <span class="drop-main">{{ kmMes.archivo.name }}</span>
           <span class="drop-sub">{{ (kmMes.archivo.size / 1024 / 1024).toFixed(2) }} MB</span>
         </span>
       </label>
 
-      <p v-if="kmMes.error" class="err-msg" role="alert">⚠️ {{ kmMes.error }}</p>
+      <p v-if="kmMes.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ kmMes.error }}</p>
 
       <div v-if="kmMes.cargando" class="progress-wrap">
         <div class="progress-bar" role="progressbar" aria-label="Avance de la carga" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="kmMes.progreso">
@@ -309,7 +298,7 @@
       <div class="form-actions">
         <button type="button" class="btn-secondary" :disabled="kmMes.cargando" @click="limpiar(kmMes)">Limpiar</button>
         <button type="button" class="btn-primary" :disabled="kmMes.cargando || !kmMes.archivo" @click="subir(kmMes, '/api/dpv-mensual/upload', alCargarKm)">
-          {{ kmMes.cargando ? 'Procesando...' : '⬆ Procesar km' }}
+          <Upload :size="16" aria-hidden="true" /> {{ kmMes.cargando ? 'Procesando...' : 'Procesar km' }}
         </button>
       </div>
     </section>
@@ -357,10 +346,9 @@
 
     <!-- Captura manual de los km de un mes -->
     <section class="card upload-card" aria-labelledby="t-manual">
-      <h2 class="card-title" id="t-manual">{{ form.editando ? 'Editar los km de un mes' : 'Escribir los km de un mes a mano' }}</h2>
+      <h2 class="card-title" id="t-manual">{{ form.editando ? 'Editar los km de un mes' : 'Escribir los km de un mes' }}</h2>
       <p class="upload-hint">
-        Útil para los meses que el Excel todavía no trae. El total es obligatorio; Padrón y Buseton son opcionales
-        (si escribes los dos, su suma debe coincidir con el total). Puedes escribir «1.000.000» o «1000000».
+        Para los meses que el Excel aún no trae. Padrón y Buseton son opcionales y deben sumar el total.
       </p>
 
       <form class="form-grid" novalidate @submit.prevent="guardarKm">
@@ -396,11 +384,12 @@
       <p v-if="sumaTipologias" class="suma-tipos" :class="sumaTipologias.cuadra ? 'suma-ok' : 'suma-mal'">
         Padrón + Buseton = {{ fmtKm(sumaTipologias.suma) }}
         <template v-if="sumaTipologias.total !== null">
-          · {{ sumaTipologias.cuadra ? 'coincide con el total ✔' : 'no coincide con el total (' + fmtKm(sumaTipologias.total) + ') ✖' }}
+          · <template v-if="sumaTipologias.cuadra"><Check :size="14" class="ic" aria-hidden="true" /> coincide con el total</template>
+          <template v-else><CircleAlert :size="14" class="ic" aria-hidden="true" /> no coincide con el total ({{ fmtKm(sumaTipologias.total) }})</template>
         </template>
       </p>
-      <p v-if="form.error" class="err-msg" role="alert">⚠️ {{ form.error }}</p>
-      <p v-if="form.ok" class="ok-msg" role="status">✔ {{ form.ok }}</p>
+      <p v-if="form.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ form.error }}</p>
+      <p v-if="form.ok" class="ok-msg" role="status"><CircleCheck :size="16" aria-hidden="true" /> {{ form.ok }}</p>
     </section>
 
     <!-- Km guardados, por mes y unidad -->
@@ -420,13 +409,13 @@
         </div>
       </div>
 
-      <p v-if="estadoTabla.error" class="err-msg" role="alert">⚠️ {{ estadoTabla.error }}</p>
-      <p v-if="estadoTabla.ok" class="ok-msg" role="status">✔ {{ estadoTabla.ok }}</p>
-      <p v-if="errorMensual" class="err-msg" role="alert">⚠️ {{ errorMensual }}</p>
+      <p v-if="estadoTabla.error" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ estadoTabla.error }}</p>
+      <p v-if="estadoTabla.ok" class="ok-msg" role="status"><CircleCheck :size="16" aria-hidden="true" /> {{ estadoTabla.ok }}</p>
+      <p v-if="errorMensual" class="err-msg" role="alert"><CircleAlert :size="16" aria-hidden="true" /> {{ errorMensual }}</p>
 
       <div v-if="!mensual && !errorMensual" class="empty-state"><p>Cargando…</p></div>
       <div v-else-if="mensual && filas.length === 0" class="empty-state">
-        <span class="empty-icon" aria-hidden="true">📭</span>
+        <Inbox :size="32" :stroke-width="1.5" class="empty-icon" aria-hidden="true" />
         <p>{{ soloSinKm ? 'Todos los meses tienen km.' : 'Aún no hay meses con eventos ni km. Sube los eventos y los km.' }}</p>
       </div>
       <div v-else-if="filas.length" class="table-wrap km-wrap">
@@ -470,7 +459,8 @@
     <section class="card historial-card" aria-labelledby="t-hist-km">
       <h3 class="card-title" id="t-hist-km">Historial de cargas de km</h3>
       <div v-if="kmMes.historial.length === 0" class="empty-state">
-        <span class="empty-icon" aria-hidden="true">📭</span><p>Sin cargas registradas</p>
+        <Inbox :size="32" :stroke-width="1.5" class="empty-icon" aria-hidden="true" />
+        <p>Sin cargas registradas</p>
       </div>
       <div v-else class="table-wrap">
         <table class="data-table">
@@ -508,6 +498,7 @@ import {
 
 import { UNIDADES as UNIDADES_INM, frescura, fmtHoras } from './inmovUtils.js'
 import BotDpvPanel from './BotDpvPanel.vue'
+import { Upload, Wrench, FileSpreadsheet, TrendingUp, CircleAlert, CircleCheck, Check, Inbox } from 'lucide-vue-next'
 
 const MAX_MB = 10   // mismo límite que el backend (MAX_FILE_MB en routes/datos.py)
 const fmt = n => (n == null ? '—' : Number(n).toLocaleString('es-CO'))
@@ -777,13 +768,26 @@ onUnmounted(() => clearInterval(relojInm))
   display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex: none;
   border-radius: 50%; background: var(--primary); color: #fff; font-size: 13px; font-weight: 800;
 }
-.upload-hint    { font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6; }
+.upload-hint    { font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6; max-width: 70ch; }
 .upload-hint code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; color: var(--primary); }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ── Iconos (Lucide) ── */
+.ic { vertical-align: -3px; flex: none; }
+.page-title svg, .card-title svg, .seccion-divider svg { flex: none; color: var(--primary); }
+.drop-icon { display: block; margin: 0 auto 4px; color: var(--text-muted); }
+.drop-icon--ok { color: var(--accent); }
+.empty-state .empty-icon { display: block; margin: 0 auto 8px; color: var(--text-muted); }
+.err-msg, .ok-msg { display: flex; align-items: flex-start; gap: 8px; }
+.err-msg svg, .ok-msg svg { flex: none; margin-top: 2px; }
+
+.cols-detalle { margin: -6px 0 14px; font-size: 12.5px; color: var(--text-muted); }
+.cols-detalle summary { cursor: pointer; font-weight: 600; }
+.cols-detalle p { margin-top: 8px; line-height: 1.6; max-width: 70ch; }
 
 .drop-zone {
   display: block; position: relative;
@@ -796,7 +800,6 @@ onUnmounted(() => clearInterval(relojInm))
 .drop-ok  { border-color: var(--accent); border-style: solid; background: var(--success-light); }
 .drop-err { border-color: var(--danger); background: var(--danger-light); }
 .drop-content { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.drop-icon { font-size: 40px; }
 .drop-main { font-size: 14px; color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
 .drop-sub  { font-size: 12px; color: var(--text-muted); font-weight: 400; }
 .drop-ok .drop-sub { color: #46605a; }   /* sobre el verde claro el gris de siempre queda en 4.4:1 */
@@ -836,7 +839,6 @@ onUnmounted(() => clearInterval(relojInm))
 .historial-card h4 { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
 .table-wrap   { overflow-x: auto; }
 .empty-state { padding: 26px 20px; }
-.empty-state .empty-icon { font-size: 30px; margin-bottom: 6px; }
 .td-causa     { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-archivo   { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 .td-green     { color: #17794f; font-weight: 600; }
@@ -853,7 +855,6 @@ onUnmounted(() => clearInterval(relojInm))
   padding-top: 24px;
   border-top: 2px solid var(--border);
 }
-.seccion-divider span { font-size: 22px; }
 .seccion-divider h2 { font-size: 18px; font-weight: 800; color: var(--text); margin: 0; }
 
 /* ── Formulario manual ── */

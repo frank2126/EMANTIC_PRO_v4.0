@@ -1,0 +1,139 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   responsive-mobile.css — ajustes de celular (≤ 720 px) para las pestañas
+   ICO y DPV del Dashboard.
+
+   Por qué es un archivo global y no cambios dentro de cada .vue:
+   los estilos «scoped» tienen especificidad (0,2,0). Aquí todos los selectores
+   llevan el prefijo `.dash-page :is(.ico-root, .dpv-root)` → (0,3,0), así que
+   ganan siempre sin necesidad de !important ni de tocar los componentes.
+
+   Se importa una sola vez en main.js:  import './assets/responsive-mobile.css'
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 720px) {
+
+  /* El texto de ayuda habla de Ctrl + clic: en celular no aplica */
+  .dash-page .hint { display: none; }
+
+  .dash-page .card {
+    border-radius: 18px;
+    box-shadow: 0 2px 10px rgba(8, 69, 52, .08);
+  }
+
+  /* El anclaje de la barra inferior (Filtros / Detalles) queda debajo de la cabecera fija de 56 px */
+  .dash-page .slicers,
+  .dash-page .detalle-card,
+  .dash-page .tabla-card,
+  .dash-page .inm-bar,
+  .dash-page .unidades-row { scroll-margin-top: 68px; }
+
+  /* ── FILTROS (slicers) ─────────────────────────────────────────────────
+     Rejilla de 2 columnas: Unidad | Año. Todo lo demás ocupa el ancho completo. */
+  .dash-page :is(.ico-root, .dpv-root) .slicers {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 14px 12px;
+    padding: 16px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .sl-fila { display: contents; }
+  .dash-page :is(.ico-root, .dpv-root) .sl-grupo {
+    grid-column: 1 / -1;
+    flex-direction: column; align-items: stretch; gap: 6px; min-width: 0;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .sl-fila:first-child > .sl-grupo:nth-child(-n+2) { grid-column: auto; }
+
+  .dash-page :is(.ico-root, .dpv-root) .sl-lbl {
+    font-size: 11px; color: var(--text); letter-spacing: .5px;
+  }
+
+  /* Botones de opción (unidad, tipología, franja, tipo de infracción) como control segmentado */
+  .dash-page :is(.ico-root, .dpv-root) .sl-btns { width: 100%; gap: 6px; }
+  .dash-page :is(.ico-root, .dpv-root) .sl-btn {
+    flex: 1; min-height: 42px; border-radius: 10px; font-size: 13px; text-align: center;
+  }
+
+  /* Meses: una sola fila de «chips» con desplazamiento horizontal */
+  .dash-page :is(.ico-root, .dpv-root) .sl-grupo--meses .sl-btns {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; scroll-snap-type: x proximity; padding-bottom: 2px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .sl-grupo--meses .sl-btns::-webkit-scrollbar { display: none; }
+  .dash-page :is(.ico-root, .dpv-root) .sl-btn--mes {
+    flex: 0 0 auto; min-width: 50px; min-height: 38px; padding: 4px 12px;
+    border-radius: 999px; font-size: 12.5px; scroll-snap-align: start;
+  }
+
+  /* Campos: 44 px de alto (táctil) y 16 px de letra (evita el zoom automático de iOS) */
+  .dash-page :is(.ico-root, .dpv-root) .sl-select,
+  .dash-page :is(.ico-root, .dpv-root) .sl-input {
+    width: 100%; min-height: 44px; border-radius: 10px; font-size: 16px; padding: 8px 12px;
+  }
+
+  /* Contador + Limpiar: una fila al final de la tarjeta */
+  .dash-page :is(.ico-root, .dpv-root) .sl-acciones {
+    grid-column: 1 / -1; order: 99; margin: 0;
+    flex-direction: row; align-items: center; justify-content: space-between; gap: 12px;
+    padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .dash-page :is(.ico-root, .dpv-root) .sl-count { justify-content: flex-start; }
+  .dash-page :is(.ico-root, .dpv-root) .sl-reset { width: auto; min-height: 40px; padding: 6px 16px; border-radius: 10px; }
+
+  /* ── KPIs secundarios: 2 × 2 compactos ── */
+  .dash-page :is(.ico-root, .dpv-root) .mini-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dash-page :is(.ico-root, .dpv-root) .mini {
+    flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 14px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .mini-n { font-size: 22px; }
+
+  /* Mapa de calor: un poco menos alto para no empujar el resto hacia abajo */
+  .dash-page :is(.ico-root, .dpv-root) .panel-calor { --plot-min: 130px; padding: 14px 12px 12px; }
+
+  /* ── RANKINGS (causas, tipos, estados, móviles…) → tarjetas fáciles de tocar ── */
+  .dash-page :is(.ico-root, .dpv-root) .left-col { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dash-page :is(.ico-root, .dpv-root) .rank-card .tabla-hdr {
+    background: transparent; color: var(--text); font-size: 12px; font-weight: 800; padding: 12px 14px 6px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .rank-card .tabla-badge { background: var(--accent-light); }
+  .dash-page :is(.ico-root, .dpv-root) .rank-cab {
+    background: var(--accent-light); color: var(--primary); font-size: 10.5px; padding: 7px 14px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .rank-lista { max-height: 340px; padding: 4px 8px 8px; }
+  .dash-page :is(.ico-root, .dpv-root) .rank-row {
+    min-height: 46px; padding: 8px; border-bottom: 1px solid var(--border); border-radius: 10px;
+  }
+  .dash-page :is(.ico-root, .dpv-root) .rank-row:last-child { border-bottom: 0; }
+  .dash-page :is(.ico-root, .dpv-root) .rank-lbl { font-size: 13.5px; }
+  .dash-page :is(.ico-root, .dpv-root) .rank-n { font-size: 17px; }
+  .dash-page :is(.ico-root, .dpv-root) .rank-track { height: 10px; }
+
+  /* ── DPV mensual ── */
+  .dash-page .dpv-root .dm-valor { font-size: 26px; }
+  .dash-page .dpv-root .dm-bloque-s { font-size: 11px; }
+
+  /* ── TABLA DE DETALLE: solo lo esencial; el resto está al tocar la fila ── */
+  .dash-page :is(.ico-root, .dpv-root) .scroll-inner { max-height: 70vh; }
+  .dash-page :is(.ico-root, .dpv-root) .mt { font-size: 12.5px; }
+  .dash-page :is(.ico-root, .dpv-root) .mt tr.fila > td { padding: 10px 8px; }
+  .dash-page :is(.ico-root, .dpv-root) .th-btn { padding: 10px 8px; font-size: 10px; }
+
+  /* ICO: se ven Móvil · Código · Estado · F. ident. · Días  (se ocultan ID, Tipo, Puntos, F. cierre y Descripción) */
+  .dash-page .ico-root .mt thead th:is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(8), :nth-child(10)),
+  .dash-page .ico-root .mt tr.fila > td:is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(8), :nth-child(10)) {
+    display: none;
+  }
+
+  /* DPV: se ven Móvil · Causa · Estado · Fecha y hora · Días  (se ocultan DPV, Ruta y Descripción) */
+  .dash-page .dpv-root .mt thead th:is(:nth-child(1), :nth-child(4), :nth-child(8)),
+  .dash-page .dpv-root .mt tr.fila > td:is(:nth-child(1), :nth-child(4), :nth-child(8)) {
+    display: none;
+  }
+
+  /* Botón «Mostrar más» y exportar, más cómodos con el dedo */
+  .dash-page :is(.ico-root, .dpv-root) .btn-mas { min-height: 40px; padding: 8px 18px; }
+  .dash-page :is(.ico-root, .dpv-root) .btn-export { min-height: 32px; }
+}
+
+/* El pie de página no debe quedar tapado por la barra inferior del Dashboard */
+@media (max-width: 720px) {
+  .app-footer { padding-bottom: 76px; }
+}

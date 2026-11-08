@@ -67,6 +67,8 @@ MODULOS = {
                 no_defecto=set()),                     # «Información Cerrada» no se baja
     # Kilometraje diario: NO es TransMiTools sino la plataforma Tako (ITS → Distancias → Distancias recorridas). Lo hace tako_km.py
     "km": dict(etiqueta="KM", endpoint="/api/kilometraje/upload-tako", sufijo="_km", etapas=[], no_defecto=set()),
+    # Disponibilidad de flota: baja el P60 de Tako y lo cruza con el kilometraje y el Excel de inmovilizados (disponibilidad.py)
+    "disp": dict(etiqueta="DISPONIBILIDAD", endpoint="/api/disponibilidad/upload", sufijo="_disp", etapas=[], no_defecto=set()),
 }
 MODULO = "dpv"
 NO_POR_DEFECTO = {6}                       # números de pestaña que NO se bajan salvo con --solo N o --con-cerrada (6 = Información Cerrada)
@@ -760,6 +762,123 @@ def subir_a_emantic(carpeta: Path, modulo: str = "dpv") -> int:
     return 0
 
 
+def _token_emantic(requests):
+    """Token de EMANTIC (un solo inicio de sesión por corrida). Devuelve (token, base) o (None, base) si no se pudo."""
+    base = os.environ.get("EMANTIC_URL", "http://localhost:8000").rstrip("/")
+    usuario, clave = os.environ.get("EMANTIC_USUARIO", "").strip(), os.environ.get("EMANTIC_CLAVE", "")
+    if not usuario or not clave:
+        log("Falta EMANTIC_USUARIO / EMANTIC_CLAVE en bot/.env (un usuario administrador de tu app).")
+        return None, base
+    token = _TOKEN.get((base, usuario, clave))
+    if token:
+        return token, base
+    r = requests.post(f"{base}/api/auth/login", json={"username": usuario, "password": clave}, timeout=30)
+    if r.status_code == 429:
+        m429 = re.search(r"(\d+)\s*segundos", r.text)
+        espera = min(int(m429.group(1)) + 3, 130) if m429 else 65
+        log(f"EMANTIC pide esperar {espera} s por demasiados inicios de sesión; espero y reintento…")
+        time.sleep(espera)
+        r = requests.post(f"{base}/api/auth/login", json={"username": usuario, "password": clave}, timeout=30)
+    if r.status_code != 200:
+        log(f"EMANTIC rechazó el usuario/clave ({r.status_code}): {r.text[:200]}")
+        return None, base
+    token = _TOKEN[(base, usuario, clave)] = r.json()["access_token"]
+    return token, base
+
+
+def procesar_disponibilidad(carpeta: Path, args, subir: bool) -> int:
+    """
+    Cruza el P60 bajado (carpeta/p60_*.csv) + el kilometraje de EMANTIC + las filas de mantenimiento que ya hay en EMANTIC
+    (o un Excel que pases con --inmov-xlsx), y deja un Excel por unidad en la misma carpeta. Con --subir (o BOT_SUBIR=1) los sube.
+    0 = bien · 1 = problema · 2 = falta configuración.
+    """
+    import disponibilidad as D
+    from datetime import timedelta
+    try:
+        import requests
+    except ImportError:
+        log("Falta la librería «requests». Ejecuta:  pip install requests")
+        return 2
+    try:
+        import openpyxl                                      # noqa: F401
+    except ImportError:
+        log("Falta la librería «openpyxl». Ejecuta:  pip install openpyxl")
+        return 2
+    p60s = sorted([x for x in carpeta.iterdir() if x.name.startswith("p60_") and x.suffix.lower() in (".csv", ".xlsx", ".xlsm")])
+    if not p60s:
+        log(f"No hay p60_* (csv o xlsx) en {carpeta}: no hay con qué decidir la disponibilidad.")
+        return 1
+    fecha_km = args.fecha_km or (datetime.now().date() - timedelta(days=1)).isoformat()
+    try:
+        token, base = _token_emantic(requests)
+        if not token:
+            return 1
+        cab = {"Authorization": f"Bearer {token}"}
+        r = requests.get(f"{base}/api/disponibilidad/bot/insumos", params={"fecha_km": fecha_km}, headers=cab, timeout=60)
+        if r.status_code == 404:
+            log("EMANTIC no tiene /api/disponibilidad/bot/insumos: falta copiar routes/disponibilidad_bot.py y registrarlo en main.py (ver INSTRUCCIONES).")
+            return 1
+        if r.status_code != 200:
+            log(f"EMANTIC respondió {r.status_code} al pedir los insumos: {r.text[:300]}")
+            return 1
+        ins = r.json()
+    except requests.exceptions.ConnectionError:
+        log(f"No pude conectar con EMANTIC en {os.environ.get('EMANTIC_URL', 'http://localhost:8000')}. ¿Está encendido el backend?")
+        return 1
+    manuales, previas = D.separar_filas_emantic(ins.get("unidades"))
+    if args.inmov_xlsx:                                      # un Excel pasado a mano manda sobre lo que hay en EMANTIC
+        manuales = [f for x in args.inmov_xlsx for f in D.leer_inmovilizados_xlsx(x)]
+        log(f"Inmovilizados: {len(manuales)} fila(s) leídas de {', '.join(Path(x).name for x in args.inmov_xlsx)}")
+    else:
+        log(f"Inmovilizados (mantenimiento) tomados de EMANTIC: {len(manuales)} móvil(es).")
+    flota = {n: (ins["unidades"].get(c) or {}).get("flota_total") for n, c in (("UF-10", "E10"), ("UF-16", "E16"))}
+    km = ins["km"] if ins.get("km_cargado") else None
+    res = D.clasificar(D.leer_p60(p60s[-1]), km, manuales, previas, fecha_km=fecha_km, flota=flota, min_km=float(args.min_km or D.MIN_KM),
+                       forzar=args.forzar)
+    for av in res["avisos"]:
+        log("AVISO: " + av)
+    if res["abortar"]:
+        log("NO SE ACTUALIZA LA DISPONIBILIDAD: " + res["abortar"])
+        return 1
+    for linea in D.resumen_texto(res):
+        log(linea)
+    archivos = D.generar_archivos(res, carpeta)
+    vacias = [u for u, d in res["unidades"].items() if not d["filas"]]
+    for u in vacias:
+        log(f"{u}: todos los buses disponibles, no hay archivo que generar.")
+    if not archivos and not vacias:
+        return 0
+    for a in archivos:
+        log(f"Excel listo: {a}")
+    if not subir:
+        if vacias:
+            log("Sin --subir: no se borró el corte anterior de " + ", ".join(vacias) + ".")
+        log("Sin --subir: los archivos quedaron en la carpeta (súbelos desde «Disponibilidad de flota» o corre con --subir).")
+        return 0
+    rc = 0
+    for u in vacias:                                         # unidad sin buses no disponibles: se borra el corte anterior (si lo había)
+        cod = D.codigo_unidad(u)
+        if (ins["unidades"].get(cod) or {}).get("filas"):
+            r = requests.post(f"{base}/api/disponibilidad/bot/limpiar", params={"empresa": cod}, headers=cab, timeout=60)
+            if r.status_code == 200:
+                log(f"EMANTIC {u}: corte anterior borrado ({r.json().get('borrados', 0)} fila(s)); queda 100 % disponible.")
+            else:
+                log(f"No pude limpiar {u} ({r.status_code}): {r.text[:200]}")
+                rc = 1
+    for a in archivos:
+        r = requests.post(f"{base}/api/disponibilidad/upload", headers=cab, timeout=120,
+                          files={"file": (a.name, a.read_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        if r.status_code != 200:
+            log(f"EMANTIC rechazó {a.name} ({r.status_code}): {r.text[:300]}")
+            rc = 1
+            continue
+        j = r.json()
+        log(f"EMANTIC {a.name}: {j.get('insertados', 0)} filas guardadas, {j.get('errores', 0)} con error.")
+        for e in j.get("errores_detalle", [])[:5]:
+            log(f"   {e}")
+    return rc
+
+
 def conectar_cdp(p, puerto: int, url_abrir=None):
     """Se conecta al Chrome con puerto de depuración. Con `url_abrir` (modo --auto) lo abre si no estaba abierto."""
     destino = f"http://127.0.0.1:{puerto}"
@@ -785,9 +904,13 @@ def conectar_cdp(p, puerto: int, url_abrir=None):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Descarga las pestañas del DPV / ICO de TransMiTools")
-    ap.add_argument("--modulo", choices=["dpv", "ico", "km", "todo"], default=os.environ.get("BOT_MODULO", "dpv"),
-                    help="qué bajar: dpv, ico, km (kilometraje de Tako) o todo (DPV + ICO + km si hay TAKO_URL)")
+    ap.add_argument("--modulo", choices=["dpv", "ico", "km", "disp", "disponibilidad", "todo"], default=os.environ.get("BOT_MODULO", "dpv"),
+                    help="qué bajar: dpv, ico, km (kilometraje de Tako), disp (disponibilidad: P60 de Tako + km + inmovilizados) disponibilidad (km de ayer + disp: lo que usa el botón de la app) o todo (todos; Tako solo si hay TAKO_URL)")
     ap.add_argument("--fecha-km", metavar="AAAA-MM-DD", help="día de kilometraje a bajar de Tako (por defecto, AYER)")
+    ap.add_argument("--inmov-xlsx", action="append", default=[], metavar="RUTA",
+                    help="disp: Excel de inmovilizados (mantenimiento) a usar en vez de lo que ya hay en EMANTIC; se puede repetir")
+    ap.add_argument("--min-km", type=float, default=None, help="disp: km mínimos para considerar que el bus salió de patio (por defecto 7)")
+    ap.add_argument("--forzar", action="store_true", help="disp: genera aunque las protecciones (P60 desactualizado, >60 %% no disponibles) digan que algo anda mal")
     ap.add_argument("--zonas", help="zonas de Tako a bajar, separadas por coma (por defecto TAKO_ZONAS o ST,SF)")
     ap.add_argument("--solo", help="números de las pestañas a bajar, p. ej. 1,2 (por defecto, las 5 primeras)")
     ap.add_argument("--desde", help="fecha inicial del filtro (AAAA-MM-DD, como la pida la pantalla)")
@@ -810,21 +933,25 @@ def main() -> int:
     cargar_env()
     if args.subir_carpeta:
         carpeta_sub = Path(args.subir_carpeta)
-        mod = args.modulo if args.modulo in MODULOS else ("km" if carpeta_sub.name.endswith("_km") else "ico" if carpeta_sub.name.endswith("_ico") else "dpv")
+        mod = args.modulo if args.modulo in MODULOS else ("disp" if carpeta_sub.name.endswith("_disp") else "km" if carpeta_sub.name.endswith("_km") else "ico" if carpeta_sub.name.endswith("_ico") else "dpv")
+        if mod == "disp":
+            return procesar_disponibilidad(carpeta_sub, args, True)
         return subir_a_emantic(carpeta_sub, mod)
     url = args.url or os.environ.get("TRANSMITOOLS_URL", "").strip()
     url_tako = os.environ.get("TAKO_URL", "").strip()
     if args.modulo == "todo":
-        modulos = ["dpv", "ico"] + (["km"] if url_tako else [])
+        modulos = ["dpv", "ico"] + (["km", "disp"] if url_tako else [])     # km antes que disp: la disponibilidad usa el km recién subido
         if not url_tako:
-            log("Aviso: no hay TAKO_URL en bot/.env: se omite el kilometraje (solo DPV e ICO).")
+            log("Aviso: no hay TAKO_URL en bot/.env: se omiten kilometraje y disponibilidad (solo DPV e ICO).")
+    elif args.modulo == "disponibilidad":
+        modulos = ["km", "disp"]                             # primero el km de ayer (lo usa la regla de 7 km), luego la disponibilidad
     else:
         modulos = [args.modulo]
     necesita_tm = any(n in ("dpv", "ico") for n in modulos)
     if necesita_tm and not url:
         log("Falta TRANSMITOOLS_URL (dirección de inicio de TransMiTools) en bot/.env")
         return 2
-    if "km" in modulos and not url_tako:
+    if ("km" in modulos or "disp" in modulos) and not url_tako:
         log("Falta TAKO_URL (dirección de Tako) en bot/.env")
         return 2
     url = url or url_tako
@@ -892,6 +1019,20 @@ def main() -> int:
                             guardar_debug(context.pages[-1], "general_km")
                         corridas.append((nombre, carpeta, [], True))
                     continue
+                if nombre == "disp":
+                    import tako_p60
+                    carpeta = DESCARGAS / (datetime.now().strftime("%Y%m%d_%H%M") + MODULOS["disp"]["sufijo"])
+                    if len(modulos) > 1:
+                        log("══ DISPONIBILIDAD ══")
+                    try:
+                        res = tako_p60.descargar_p60(context, cap, carpeta, log, buscar, guardar_debug, espera_login)
+                        if res["estado"] == "error":
+                            log(f"   ERROR: {res['detalle']}")
+                        corridas.append((nombre, carpeta, [res], res["estado"] == "error"))
+                    except Exception as e:               # noqa: BLE001
+                        log(f"ERROR en DISPONIBILIDAD: {str(e).splitlines()[0]}")
+                        corridas.append((nombre, carpeta, [], True))
+                    continue
                 m = usar_modulo(nombre)
                 etapas = etapas_de_modulo()
                 if not etapas:
@@ -947,6 +1088,10 @@ def main() -> int:
             print(f"\nArchivos en: {carpeta}")
         if fallo or any(r["estado"] == "error" for r in resultados):
             rc = 1
+        if nombre == "disp":
+            if carpeta.exists() and not fallo:               # el P60 se bajó: se calcula (y se sube con --subir)
+                rc = rc or procesar_disponibilidad(carpeta, args, subir)
+            continue
         if subir and carpeta.exists():
             rs = subir_a_emantic(carpeta, nombre)           # se sube aunque otra pestaña haya fallado: lo bajado sirve
             rc = rc or rs

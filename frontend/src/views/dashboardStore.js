@@ -192,12 +192,15 @@ export const useDashboardStore = defineStore('dashboard', {
       const campo = DPV.camposSerie(f.tipologia)
       const visibles = f.uf.length ? f.uf : DPV.UNIDADES.map(x => x.key)
       return DPV.UNIDADES.filter(x => visibles.includes(x.key)).map(x => {
-        const datos = (x.key === 'UF10' ? state.dpvMensual.e10 : state.dpvMensual.e16) || []
+        const todos = (x.key === 'UF10' ? state.dpvMensual.e10 : state.dpvMensual.e16) || []
+        // La gráfica muestra solo el año del slicer «Año» (o el año en curso si está en «Todos»)
+        const anioGrafica = String(f.anio || new Date().getFullYear())
+        const datos = todos.filter(m => String(m.mes).slice(0, 4) === anioGrafica)
         const geo = DPV.geometriaSerie(datos, { campo: campo.dpv, umbrales: u })
         return {
           uf: x.key, label: x.label, nombre: x.nombre, color: DPV.COLOR_UF[x.key],
           datos, campo, geo,
-          kpi: DPV.kpiDpv([{ uf: x.key, datos }], f, u),
+          kpi: DPV.kpiDpv([{ uf: x.key, datos: todos }], f, u),
           puntos: geo.puntos.map(p => ({ ...p, enPeriodo: DPV.enPeriodo(p.mes, f) })),
           etiquetados: [...DPV.indicesEtiquetados(geo.puntos)],
         }

@@ -44,8 +44,8 @@ const { state } = useLoader()
 @keyframes al-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
 @keyframes al-pulse { 50% { transform: scale(1.05); } }
 
-.loader-enter-active, .loader-leave-active { transition: opacity .3s ease; }
-.loader-enter-from, .loader-leave-to { opacity: 0; }
+.loader-leave-active { transition: opacity .3s ease; }
+.loader-leave-to { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .al-logo, .al-bar i { animation: none; }

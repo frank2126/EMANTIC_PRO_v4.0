@@ -356,7 +356,6 @@ const paneles = computed(() => [
   { dim: 'tipo_novedad',    titulo: 'TIPO NOVEDAD POR No. EVENTOS',      col: 'CÓDIGO', filas: store.icoTipoNovedad, mono: true },
   { dim: 'tipo_infraccion', titulo: 'TIPO DE INFRACCIÓN POR No. EVENTOS', col: 'TIPO',   filas: store.icoTipoInfraccion, mono: false },
   { dim: 'estado',          titulo: 'ESTADO DE LA RESPUESTA',            col: 'ESTADO', filas: store.icoEstados, mono: false },
-  { dim: 'movil',           titulo: 'TOP 10 UNIDADES CON MÁS ICO',       col: 'MÓVIL',  filas: store.icoTopMoviles.slice(0, 10), mono: false },
 ])
 
 // ── Helpers de presentación ──

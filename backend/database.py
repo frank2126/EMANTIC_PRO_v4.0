@@ -305,6 +305,39 @@ class AppConfigDB(Base):
     value      = Column(Text, default="")
     updated_by = Column(String(100), default="")
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    
+class NewsletterSubscriptionDB(Base):
+    __tablename__ = "newsletter_subscriptions"
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    user_id         = Column(String(36), nullable=True, index=True)   # users.id (sin FK en el modelo; el .sql la crea)
+    email           = Column(String(255), unique=True, nullable=False)  # siempre en minúsculas
+    accepted_terms  = Column(Boolean, nullable=False, default=False)
+    is_active       = Column(Boolean, nullable=False, default=True, index=True)
+    role            = Column(String(50), nullable=False, default="Externo")
+    created_at      = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at      = Column(DateTime, default=datetime.datetime.utcnow)
+    unsubscribed_at = Column(DateTime, nullable=True)
+
+    
+class SolicitudDB(Base):
+    __tablename__ = "solicitudes_gestion"
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    user_id           = Column(String(36), nullable=True, index=True)
+    username          = Column(String(100), nullable=False, default="")
+    solicitante       = Column(String(200), nullable=False, default="")
+    email             = Column(String(255), nullable=False, default="")
+    tipo              = Column(String(40), nullable=False)
+    movil             = Column(String(30), nullable=False, default="")
+    mensaje           = Column(String(600), nullable=False)
+    prioridad         = Column(String(10), nullable=False, default="normal")
+    estado            = Column(String(20), nullable=False, default="pendiente", index=True)
+    respuesta         = Column(Text, nullable=False, default="")
+    respondido_por    = Column(String(200), nullable=False, default="")
+    respondido_at     = Column(DateTime, nullable=True)
+    visto_solicitante = Column(Boolean, nullable=False, default=True)
+    created_at        = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at        = Column(DateTime, default=datetime.datetime.utcnow)    
+
 
 # ── FUNCIONES DE DEPENDENCIA ───────────────────────────────
 

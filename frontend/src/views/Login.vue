@@ -27,7 +27,6 @@
 
         <div v-if="lockMsg"   class="alert alert--lock">🔒 {{ lockMsg }}</div>
         <div v-if="errorMsg && !lockMsg" class="alert alert--error">⚠ {{ errorMsg }}</div>
-        <div v-if="successMsg" class="alert alert--success">✓ {{ successMsg }}</div>
 
         <div class="lc-form">
           <div class="fgroup">
@@ -85,22 +84,21 @@ const form         = ref({ username: '', password: '' })
 const loading      = ref(false)
 const errorMsg     = ref('')
 const lockMsg      = ref('')
-const successMsg   = ref('')
 const showPass     = ref(false)
 const shaking      = ref(false)
 const attemptsLeft = ref(5)
 
 const handleLogin = async () => {
-  if (!form.value.username || !form.value.password || lockMsg.value) return
-  errorMsg.value = ''; successMsg.value = ''; loading.value = true
-  loader.show('Iniciando sesión', 'Verificando tus credenciales…')
+  if (!form.value.username || !form.value.password || lockMsg.value || loading.value) return
+  errorMsg.value = ''; loading.value = true
   try {
-    await login(form.value.username, form.value.password)
-    loader.show('Bienvenido', 'Preparando tu panel…')
-    await router.push('/dashboard')
-    loader.hide(900)   // el dashboard ya muestra su skeleton debajo mientras llegan los datos
+    // El loader cubre todo: validar credenciales → guardar sesión → abrir el dashboard.
+    // Vale para cualquier usuario (admin o técnico): todos entran por este formulario.
+    await loader.run('Iniciando sesión', 'Preparando tu espacio de trabajo…', async () => {
+      await login(form.value.username, form.value.password)
+      await router.push('/dashboard')
+    }, { min: 900 })
   } catch (e) {
-    loader.hide()
     const detail = e.response?.data?.detail || 'Error de conexión con el servidor'
     if (e.response?.status === 429) {
       lockMsg.value = detail

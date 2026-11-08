@@ -1,6 +1,6 @@
 <template>
   <!-- Layout autenticado -->
-  <div v-if="isLoggedIn()">
+  <div v-if="showShell"> 
 
     <!-- ── Navbar escritorio ── -->
     <nav class="topnav">
@@ -180,6 +180,7 @@
               <strong>{{ state.user?.name }}</strong>
               <span>@{{ state.user?.username }}</span>
             </div>
+            <EmailPreferences class="user-menu-prefs" />
             <button class="user-menu-item danger" @click="handleLogout">⏻ Cerrar sesión</button>
           </div>
         </div>
@@ -360,6 +361,7 @@
             Usuarios
           </router-link>
 
+          <EmailPreferences class="drawer-prefs" />
           <button class="drawer-logout" @click="handleLogout">⏻ Cerrar sesión</button>
         </div>
       </div>
@@ -374,116 +376,8 @@
       </router-view>
     </main>
 
-    <!-- ── Footer ── -->
-    <footer class="app-footer">
-      <div class="footer-main">
-
-        <div class="footer-col footer-brand">
-          <div class="footer-logo-row">
-            <div class="footer-logo-icon">
-              <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-                <rect width="40" height="40" rx="10" fill="#31b079"/>
-                <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle"
-                  font-size="14" font-weight="900" fill="#fff" font-family="Arial">E</text>
-              </svg>
-            </div>
-            <div>
-              <div class="footer-brand-name">EMANTIX</div>
-              <div class="footer-brand-sub">Sistema Técnico Automotriz</div>
-            </div>
-          </div>
-          <p class="footer-desc">
-            Plataforma de gestión técnica de flota desarrollada para
-            <strong>Emasivo Capital</strong>. Integra manuales, mantenimiento,
-            documentación y analíticas en un solo sistema.
-          </p>
-          <div class="footer-socials">
-            <a href="https://www.linkedin.com/company/emasivobog/" target="_blank" rel="noopener noreferrer" class="social-btn" title="LinkedIn">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-              </svg>
-            </a>
-              <a href="https://www.facebook.com/Emasivo1016.SAS" target="_blank" rel="noopener noreferrer" class="social-btn" title="Facebook">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-             </a>
-            <a href="https://www.tiktok.com/@emasivo10_16s.a.s" target="_blank" rel="noopener noreferrer" class="social-btn" title="TikTok">
-             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-               <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0115.54 3h-3.09v12.4a2.592 2.592 0 01-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 004.3 1.38V7.3s-1.88.09-3.24-1.48z"/>
-             </svg>
-            </a>
-          </div>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col-title">Flota</h4>
-          <ul class="footer-links">
-            <li><span>🚌</span> Unidades Z32 (UF-10)</li>
-            <li><span>🚌</span> Unidades Z34 (UF-16)</li>
-            <li><span>🚌</span> Flota UF-17</li>
-            <li><span>🔧</span> Mantenimiento Preventivo</li>
-            <li><span>🔧</span> Mantenimiento Correctivo</li>
-            <li><span>📊</span> Historial de Flota</li>
-          </ul>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col-title">Sistemas</h4>
-          <ul class="footer-links">
-            <li><span>⚙️</span> Motor y Transmisión</li>
-            <li><span>🛑</span> Sistema de Frenos</li>
-            <li><span>⚡</span> Sistema Eléctrico</li>
-            <li><span>🔄</span> Suspensión</li>
-            <li><span>🚌</span> Carrocería y Chasis</li>
-            <li><span>💻</span> Diagnóstico ECU</li>
-          </ul>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col-title">Recursos</h4>
-          <ul class="footer-links">
-            <li><span>📋</span> Manuales Técnicos</li>
-            <li><span>📁</span> Documentación</li>
-            <li><span>🔍</span> Códigos DTC</li>
-            <li><span>💧</span> Tabla de Fluidos</li>
-            <li><span>📈</span> Analíticas</li>
-            <li><span>📊</span> Reportes de Campo</li>
-          </ul>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col-title">Emasivo Capital</h4>
-          <ul class="footer-links">
-            <li><span>🏢</span> Sobre nosotros</li>
-            <li><span>📍</span> Punto de Inicio de Ruta (PIR) Bilbao Calle 144 #148-10</li>
-            <li><span>📍</span> Centro de Operación La Gaitana Carrera 129 # 132- 30</li>
-            <li><span>📍</span> Centro de Operación San Andrés 500 M Puente Guadua Calle 80 Autopista Bogotá – Villeta sentido Occidente – Oriente</li>
-            <li><span>👥</span> Equipo técnico</li>
-            <li><span>📞</span> Línea de Contacto (+57) 317 329 09 93</li>
-            <li><span>🛡️</span> Política de calidad</li>
-          </ul>
-        </div>
-
-      </div>
-
-      <div class="footer-bottom">
-        <div class="footer-bottom-left">
-          <span>© {{ currentYear }} Emasivo Capital. Todos los derechos reservados.</span>
-          <span class="footer-dot">·</span>
-          <span>Emantix Pro v4.0</span>
-        </div>
-        <div class="footer-bottom-right">
-          <span>Aviso de privacidad</span>
-          <span class="footer-dot">·</span>
-          <span>Términos de uso</span>
-          <span class="footer-dot">·</span>
-          <span>Certificación ISO 9001</span>
-          <span class="footer-dot">·</span>
-          <span>RTM</span>
-        </div>
-      </div>
-    </footer>
+    <!-- ── Pie de página: suscripción a informes, estado del sistema ── -->
+    <FooterEmantic />
 
   </div>
 
@@ -493,26 +387,32 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuth } from './auth.js'
 import { useLoader } from './loader.js'
+import AppLoader from './components/AppLoader.vue'
+import FooterEmantic from './components/FooterEmantic.vue'
+import EmailPreferences from './components/EmailPreferences.vue'
 
+const route       = useRoute()
 const router      = useRouter()
-const { state, logout, isAdmin, isLoggedIn } = useAuth()
+const { state, logout, isAdmin } = useAuth()
 const loader      = useLoader()
 const menuOpen    = ref(false)
 const drawerOpen  = ref(false)
 const userInitial = computed(() => state.user?.name?.charAt(0).toUpperCase() || '?')
-const currentYear = computed(() => new Date().getFullYear())
 
-// La pantalla de transición (AppLoader) se monta en main.js, fuera de este componente,
-// para que no desaparezca cuando el layout cambia entre login y navbar.
+// El layout (navbar) depende de la RUTA, no de si hay sesión.
+// El guard del router ya protege las rutas privadas; así, al iniciar o cerrar sesión
+// la pantalla no "salta" antes de navegar.
+const showShell = computed(() => route.matched.length > 0 && !route.meta.public)
+
 const handleLogout = async () => {
   menuOpen.value   = false
   drawerOpen.value = false
   await loader.run('Cerrando sesión', 'Guardando tu sesión de forma segura…', async () => {
-    try { await axios.post('/api/auth/logout') } catch {}   // avisa al servidor; si falla, igual se cierra
+    try { await axios.post('/api/auth/logout', null, { timeout: 4000 }) } catch {}   // si falla, igual se cierra
     logout()
     await router.push('/login')
   }, { min: 900 })
@@ -576,8 +476,9 @@ const handleLogout = async () => {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
-  min-width: 200px; overflow: hidden; z-index: 200;
+  min-width: 200px; width: 300px; overflow: hidden; z-index: 200;
 }
+.user-menu-prefs { border-bottom: 1px solid var(--border); }
 .user-menu-header {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
@@ -597,7 +498,7 @@ const handleLogout = async () => {
 .overlay-transparent { position: fixed; inset: 0; z-index: 99; }
 
 /* ══ MAIN ════════════════════════════════════════════════════════ */
-.main-content { padding-top: var(--nav-h); min-height: 100vh; }
+.main-content { padding-top: var(--nav-h); padding-bottom: 32px; min-height: 100vh; }   /* aire antes del pie de página */
 
 /* ══ MOBILE HEADER ═══════════════════════════════════════════════ */
 .mobile-header {
@@ -641,6 +542,8 @@ const handleLogout = async () => {
 .drawer-link:hover,
 .drawer-link.router-link-active { background: var(--primary-light); color: var(--primary); }
 .drawer-link.router-link-active { border-left: 3px solid var(--accent); }
+.drawer-prefs { margin-top: auto; border-top: 1px solid var(--border); padding: 8px 6px; }
+.drawer-prefs + .drawer-logout { margin-top: 0; }
 .drawer-logout {
   margin-top: auto; padding: 16px 20px;
   background: none; border: none;
@@ -649,77 +552,11 @@ const handleLogout = async () => {
   cursor: pointer; text-align: left; font-family: inherit;
 }
 
-/* ══ FOOTER ══════════════════════════════════════════════════════ */
-.app-footer {
-  background: var(--footer-gradient);
-  color: rgba(255,255,255,0.65);
-  font-family: 'Inter', sans-serif;
-  margin-top: 48px;
-  border-top: 3px solid var(--teal);         /* línea teal de conexión verde→azul */
-}
-.footer-main {
-  display: flex; gap: 40px; flex-wrap: wrap;
-  padding: 52px 40px 40px;
-  max-width: 1400px; margin: 0 auto;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.footer-brand { flex: 1.8; min-width: 220px; }
-.footer-col   { flex: 1; min-width: 140px; }
-
-.footer-logo-row   { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.footer-brand-name { font-size: 16px; font-weight: 900; letter-spacing: 2px; color: #fff; }
-.footer-brand-sub  { font-size: 10px; color: rgba(255,255,255,0.38); letter-spacing: 1px; }
-.footer-desc       { font-size: 13px; line-height: 1.75; color: rgba(255,255,255,0.48); margin-bottom: 22px; }
-.footer-desc strong { color: var(--accent); }
-
-.footer-socials { display: flex; gap: 10px; }
-.social-btn {
-  width: 34px; height: 34px;
-  background: rgba(49,176,121,0.12);
-  border: 1px solid rgba(49,176,121,0.25);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  color: rgba(255,255,255,0.55); text-decoration: none;
-  transition: all 0.2s;
-}
-.social-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-.footer-col-title {
-  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
-  text-transform: uppercase; color: var(--accent);
-  margin-bottom: 16px; padding-bottom: 8px;
-  border-bottom: 1px solid rgba(49,176,121,0.25);
-}
-.footer-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.footer-links li {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: rgba(255,255,255,0.48);
-  transition: color 0.15s; cursor: default;
-}
-.footer-links li:hover { color: rgba(255,255,255,0.85); }
-.footer-links li span  { font-size: 14px; }
-
-.footer-bottom {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 10px;
-  padding: 18px 40px;
-  max-width: 1400px; margin: 0 auto;
-  font-size: 12px; color: rgba(255,255,255,0.28);
-}
-.footer-bottom-left  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.footer-bottom-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.footer-dot { opacity: 0.25; }
-
 /* ══ RESPONSIVE ══════════════════════════════════════════════════ */
 @media (max-width: 960px) {
   .topnav        { display: none; }
   .mobile-header { display: flex; }
-  .main-content  { padding-top: 56px; }
-}
-@media (max-width: 768px) {
-  .footer-main   { padding: 32px 20px 24px; gap: 24px; }
-  .footer-bottom { padding: 14px 20px; flex-direction: column; text-align: center; }
-  .footer-brand  { flex: 100%; }
+  .main-content  { padding-top: 56px; padding-bottom: 24px; }
 }
 
 /* ════════════════════════════════════════════════════════════════

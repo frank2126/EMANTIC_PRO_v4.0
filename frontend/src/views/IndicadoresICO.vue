@@ -2,6 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h1 class="page-title"><span>📈</span> Indicadores ICO</h1>
+      <BotDisponibilidad @listo="store.cargarDisponibilidad()" />
       <div class="header-actions">
         <button class="btn-secondary" @click="showUploadDisp = !showUploadDisp">
           {{ showUploadDisp ? '✕ Cancelar' : '📊 Cargar Disponibilidad' }}
@@ -258,6 +259,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from './dashboardStore.js'
+import BotDisponibilidad from './BotDisponibilidad.vue'
 
 const store = useDashboardStore()
 
