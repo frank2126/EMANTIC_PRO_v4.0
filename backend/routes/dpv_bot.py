@@ -1,4 +1,4 @@
-    # ═══════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 #  EMANTIX PRO — Carga del DPV desde los CSV que baja el bot de TransMiTools
 #  POST /api/dpv/upload-csv  (solo admin)
 #
@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 
 import dpv_reglas as reglas
 from database import DpvRegistroDB, IcoRegistroDB
+from routes.dpv_duplicados import aplicar_en_carga   # aparta los casos duplicados antes de contarlos
 from deps import get_db, get_current_admin_user
 from routes.datos import (
     BATCH, MAX_FILE_MB, DPV_LEN, ICO_COLS, ICO_LEN, norm_header, pick, to_dt, to_int, to_str, registrar_historial, respuesta,
@@ -145,6 +146,10 @@ async def upload_dpv_csv(files: List[UploadFile] = File(...), db: Session = Depe
             n_ok += 1
         por_archivo.append({"archivo": nombre, "filas": n_ok})
 
+    # Casos duplicados (mismo móvil + misma fecha-hora + misma novedad con otro IdDPV): se apartan y NO se cargan al DPV
+    ap = aplicar_en_carga(db, eventos, "bot")
+    eventos, duplicados = ap["eventos"], ap["resumen"]
+
     ids = list(eventos.keys())
     existentes: Dict[int, DpvRegistroDB] = {}
     for i in range(0, len(ids), BATCH):
@@ -187,7 +192,7 @@ async def upload_dpv_csv(files: List[UploadFile] = File(...), db: Session = Depe
     seg = time.time() - t0
     nombres = ", ".join(a["archivo"] for a in por_archivo)
     registrar_historial(db, "dpv", user, nombres, total, ins, upd, len(errores), seg, "\n".join(errores[:50]))
-    return respuesta(total, ins, upd, errores, seg, {"archivos": por_archivo, "sin_tipologia": sin_tipologia})
+    return respuesta(total, ins, upd, errores, seg, {"archivos": por_archivo, "sin_tipologia": sin_tipologia, "duplicados": duplicados})
 
 
 # ═══════════════════════════════════════════════════════════

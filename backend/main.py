@@ -35,6 +35,7 @@ from routes.dpv_bot import router as dpv_bot_router
 from routes.subscriptions import router as subscriptions_router   
 from routes.solicitudes import router as solicitudes_router   
 from routes.disponibilidad_bot import router as disponibilidad_bot_router
+from routes.dpv_duplicados import router as dpv_duplicados_router
 
 # Error handling
 from utils.error_handler import setup_exception_handlers
@@ -166,7 +167,8 @@ app.include_router(documents_router)
 app.include_router(dpv_bot_router) 
 app.include_router(subscriptions_router)
 app.include_router(solicitudes_router) 
-app.include_router(disponibilidad_bot_router)                         
+app.include_router(disponibilidad_bot_router) 
+app.include_router(dpv_duplicados_router)                        
 
 logger.info("✅ Rutas registradas: auth, users, maintenance, reportes, excel, manuals, repuestos, health, kilometraje, datos, documents")
 

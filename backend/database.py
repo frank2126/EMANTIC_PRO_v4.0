@@ -110,6 +110,33 @@ class ReporteDB(Base):
     created_at       = Column(DateTime, default=datetime.datetime.utcnow)
     uploaded_by      = Column(String(100), default="")
 
+class DpvDuplicadoDB(Base):
+    """Casos del DPV repetidos (mismo móvil + misma fecha-hora + misma novedad, distinto IdDPV): se apartan aquí y NO cuentan."""
+    __tablename__ = "dpv_duplicados"
+    id                    = Column(Integer, primary_key=True, autoincrement=True)
+    dpv_id                = Column(Integer, unique=True, nullable=False, index=True)
+    original_id           = Column(Integer, nullable=True, index=True)      # IdDPV del caso que SÍ se conserva
+    estado                = Column(String(100), default="")
+    fecha_inicio          = Column(DateTime, nullable=True)
+    fecha_cierre          = Column(DateTime, nullable=True)
+    empresa               = Column(String(200), default="")
+    fuente                = Column(String(200), default="")
+    placa                 = Column(String(20),  default="")
+    movil                 = Column(String(20),  default="", index=True)
+    tipologia             = Column(String(100), default="")
+    fecha_inmovilizacion  = Column(DateTime, nullable=True)
+    hora                  = Column(String(10),  default="")
+    causa_inmovilizacion  = Column(String(300), default="")
+    descripcion_novedad   = Column(Text,        default="")
+    ruta                  = Column(String(100), default="")
+    operador              = Column(String(50),  default="")
+    dia_semana            = Column(String(20),  default="")
+    alerta                = Column(String(100), default="")
+    franja_horaria        = Column(String(50),  default="")
+    restaurado            = Column(Boolean, default=False, nullable=False)  # True = alguien lo devolvió al DPV: no se vuelve a apartar
+    origen                = Column(String(20),  default="bot")               # bot | excel | limpieza
+    detectado_en          = Column(DateTime, default=datetime.datetime.utcnow)
+    
 class DpvRegistroDB(Base):
     __tablename__ = "dpv_registros"
     id                    = Column(Integer, primary_key=True, autoincrement=True)

@@ -755,6 +755,10 @@ def subir_a_emantic(carpeta: Path, modulo: str = "dpv") -> int:
     log(f"EMANTIC {etiqueta}: {j.get('insertados', 0)} nuevos, {j.get('actualizados', 0)} actualizados, {j.get('errores', 0)} con error.")
     if modulo == "km":
         log(f"   Kilometraje: {j.get('moviles', 0)} móviles, {j.get('dias', 0)} día(s) ({j.get('desde')} → {j.get('hasta')}).")
+    dup = j.get("duplicados") or {}
+    if dup.get("total"):
+        movs = ", ".join(f"{m['movil']} ×{m['copias']}" for m in dup.get("moviles", [])[:10])
+        log(f"   ⚠ {dup['total']} caso(s) DUPLICADO(S) apartados (mismo móvil, hora y novedad; no cuentan en el DPV): {movs}")
     if j.get("sin_tipologia"):
         log(f"   Aviso: {j['sin_tipologia']} registro(s) nuevos sin tipología (móvil que no estaba registrado): complétalos en la app.")
     for e in j.get("errores_detalle", [])[:5]:

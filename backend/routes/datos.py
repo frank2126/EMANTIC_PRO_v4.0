@@ -26,6 +26,7 @@ from database import (
     InmovRegistroDB, InmovCorteDB,
 )
 from deps import get_db, get_current_user, get_current_admin_user
+from routes.dpv_duplicados import aplicar_en_carga
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +339,9 @@ async def upload_dpv(file: UploadFile = File(...), db: Session = Depends(get_db)
         for campo in cambios:
             calidad[campo] = calidad.get(campo, 0) + 1
         registros.append(r)
+
+    ap = aplicar_en_carga(db, {r["dpv_id"]: r for r in registros}, "excel")
+    registros, duplicados = list(ap["eventos"].values()), ap["resumen"]
 
     try:
         ins, upd = upsert(db, DpvRegistroDB, "dpv_id", registros)

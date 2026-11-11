@@ -88,6 +88,8 @@
       Haz clic en un día, una hora, un segmento de la dona, una fila de las listas o un mes del DPV mensual para filtrar todo el tablero. Ctrl + clic para elegir varios.
     </p>
 
+    <PanelDuplicadosDPV :recargando="store.loading" @cambio="store.cargarDatos()" />
+
     <!-- ══ SIN DATOS ══ -->
     <div v-if="!store.dpvRaw.length && !store.loading" class="card vacio vacio--grande">
       <template v-if="store.dpvCompleto">
@@ -481,6 +483,7 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useDashboardStore } from './dashboardStore.js'
+import PanelDuplicadosDPV from '../components/PanelDuplicadosDPV.vue'
 import {
   UNIDADES, NIVEL, ESTADO_TODOS, ESTADO_DESCARTADO, ORIGEN_KM, ANCHO_MES_PX,
   MESES_CORTOS, HEAT_COLORES, HEAT_DIA,
